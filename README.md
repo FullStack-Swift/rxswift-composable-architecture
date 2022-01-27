@@ -14,6 +14,6 @@ https://github.com/FullStack-Swift/rxswift-composable-architecture
 
 https://github.com/FullStack-Swift/reactiveswift-composable-architecture
 
-## Example
+## Examples
 
-https://github.com/FullStack-Swift/TodoFullStackSwift
+https://github.com/FullStack-Swift/TodoList
