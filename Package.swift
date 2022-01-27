@@ -17,7 +17,7 @@ let package = Package(
       targets: ["ComposableArchitecture"]),
   ],
   dependencies: [
-    .package(url: "https://github.com/ReactiveX/RxSwift.git", from: "6.2.0"),
+    .package(url: "https://github.com/ReactiveX/RxSwift.git", from: "6.5.0"),
     .package(name: "Benchmark", url: "https://github.com/google/swift-benchmark", from: "0.1.0"),
     .package(url: "https://github.com/pointfreeco/combine-schedulers", from: "0.5.0"),
     .package(url: "https://github.com/pointfreeco/swift-case-paths", from: "0.7.0"),
