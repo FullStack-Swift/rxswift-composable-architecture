@@ -1,8 +1,8 @@
 # rxswift-composable-architecture
 
-Installation
+# Installation
 
-Swift Package Manager
+# Swift Package Manager
 
 ```swift
 dependencies: [
