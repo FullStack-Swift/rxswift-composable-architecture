@@ -50,17 +50,17 @@ extension Store {
     else: @escaping () -> Void = {}
   ) -> Disposable where State == Wrapped? {
     return self.state.distinctUntilChanged {($0 != nil) == ($1 != nil)}
-    .observe(on: MainScheduler.instance)
-    .subscribe (onNext: { state in
-      if var state = state {
-        unwrap(
-          self.scope {
-            state = $0 ?? state
-            return state
-          })
-      } else {
-        `else`()
-      }
-    })
+      .observe(on: MainScheduler.instance)
+      .subscribe (onNext: { state in
+        if var state = state {
+          unwrap(
+            self.scope {
+              state = $0 ?? state
+              return state
+            })
+        } else {
+          `else`()
+        }
+      })
   }
 }

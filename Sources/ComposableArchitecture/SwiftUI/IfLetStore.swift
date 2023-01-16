@@ -10,29 +10,31 @@ import SwiftUI
 /// ```swift
 /// IfLetStore(
 ///   store.scope(state: \SearchState.results, action: SearchAction.results),
-///   then: SearchResultsView.init(store:),
-///   else: { Text("Loading search results...") }
-/// )
+/// ) {
+///   SearchResultsView(store: $0)
+/// } else: {
+///   Text("Loading search results...")
+/// }
 /// ```
 ///
-/// And for performing navigation when a piece of state becomes non-`nil`:
+/// And for showing a sheet when a piece of state becomes non-`nil`:
 ///
 /// ```swift
-/// NavigationLink(
-///   destination: IfLetStore(
-///     self.store.scope(state: \.detail, action: AppAction.detail),
-///     then: DetailView.init(store:)
-///   ),
-///   isActive: viewStore.binding(
+/// .sheet(
+///   isPresented: viewStore.binding(
 ///     get: \.isGameActive,
 ///     send: { $0 ? .startButtonTapped : .detailDismissed }
 ///   )
 /// ) {
-///   Text("Start!")
+///   IfLetStore(
+///     self.store.scope(state: \.detail, action: AppAction.detail)
+///   ) {
+///     DetailView(store: $0)
+///   }
 /// }
 /// ```
 ///
-public struct IfLetStore<State, Action, Content>: View where Content: View {
+public struct IfLetStore<State, Action, Content: View>: View {
   private let content: (ViewStore<State?, Action>) -> Content
   private let store: Store<State?, Action>
 
@@ -47,21 +49,24 @@ public struct IfLetStore<State, Action, Content>: View where Content: View {
   public init<IfContent, ElseContent>(
     _ store: Store<State?, Action>,
     @ViewBuilder then ifContent: @escaping (Store<State, Action>) -> IfContent,
-    @ViewBuilder else elseContent: @escaping () -> ElseContent
+    @ViewBuilder else elseContent: () -> ElseContent
   ) where Content == _ConditionalContent<IfContent, ElseContent> {
     self.store = store
+    let elseContent = elseContent()
     self.content = { viewStore in
       if var state = viewStore.state {
         return ViewBuilder.buildEither(
           first: ifContent(
-            store.scope {
-              state = $0 ?? state
-              return state
-            }
+            store
+              .filter { state, _ in state == nil ? !BindingLocal.isActive : true }
+              .scope {
+                state = $0 ?? state
+                return state
+              }
           )
         )
       } else {
-        return ViewBuilder.buildEither(second: elseContent())
+        return ViewBuilder.buildEither(second: elseContent)
       }
     }
   }
@@ -81,10 +86,12 @@ public struct IfLetStore<State, Action, Content>: View where Content: View {
     self.content = { viewStore in
       if var state = viewStore.state {
         return ifContent(
-          store.scope {
-            state = $0 ?? state
-            return state
-          }
+          store
+            .filter { state, _ in state == nil ? !BindingLocal.isActive : true }
+            .scope {
+              state = $0 ?? state
+              return state
+            }
         )
       } else {
         return nil
@@ -95,6 +102,7 @@ public struct IfLetStore<State, Action, Content>: View where Content: View {
   public var body: some View {
     WithViewStore(
       self.store,
+      observe: { $0 },
       removeDuplicates: { ($0 != nil) == ($1 != nil) },
       content: self.content
     )

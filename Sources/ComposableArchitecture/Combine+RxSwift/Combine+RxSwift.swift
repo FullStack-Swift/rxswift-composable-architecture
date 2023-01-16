@@ -1,10 +1,9 @@
-#if canImport(Combine)
 import Combine
 import RxSwift
 
 public extension Publisher {
-    /// Convert the publisher to an Observable
-    /// - Returns: Observable
+  /// Convert the publisher to an Observable
+  /// - Returns: Observable
   func asObservable() -> Observable<Output> {
     Observable<Output>.create { observer in
       let cancellable = self.sink(
@@ -22,28 +21,23 @@ public extension Publisher {
       return Disposables.create { cancellable.cancel() }
     }
   }
-    /// Convert the publisher to an Effect
-    /// - Returns: Effect
-  func eraseToEffect() -> Effect<Output> {
-    Effect(asObservable())
-  }
 }
 
 public extension ObservableConvertibleType {
   
-    ///  Convert the observable to an AnyPublisher
+  ///  Convert the observable to an AnyPublisher
   var publisher: AnyPublisher<Element, Swift.Error> {
     RxPublisher(upstream: self).eraseToAnyPublisher()
   }
-
-    ///  Convert the observable to an AnyPublisher
-    /// - Returns: AnyPublisher
+  
+  ///  Convert the observable to an AnyPublisher
+  /// - Returns: AnyPublisher
   func asPublisher() -> AnyPublisher<Element, Swift.Error> {
     publisher
   }
 }
 
-  /// RxPublisher
+/// RxPublisher
 public class RxPublisher<Upstream: ObservableConvertibleType>: Publisher {
   public typealias Output = Upstream.Element
   public typealias Failure = Swift.Error
@@ -53,14 +47,24 @@ public class RxPublisher<Upstream: ObservableConvertibleType>: Publisher {
     self.upstream = upstream
   }
   
-  public func receive<S: Subscriber>(subscriber: S) where Failure == S.Failure, Output == S.Input {
-    subscriber.receive(subscription: RxSubscription(upstream: upstream,
-                                                    downstream: subscriber))
+  public func receive<S: Subscriber>(
+    subscriber: S
+  ) where Failure == S.Failure, Output == S.Input {
+    subscriber.receive(
+      subscription: RxSubscription(
+        upstream: upstream,
+        downstream: subscriber
+      )
+    )
   }
 }
 
-  /// RxSubscription
-class RxSubscription<Upstream: ObservableConvertibleType, Downstream: Subscriber>: Combine.Subscription where Downstream.Input == Upstream.Element, Downstream.Failure == Swift.Error {
+/// RxSubscription
+class RxSubscription<
+  Upstream: ObservableConvertibleType,
+  Downstream: Subscriber
+>: Combine.Subscription
+where Downstream.Input == Upstream.Element, Downstream.Failure == Swift.Error {
   private var disposable: Disposable?
   private let buffer: DemandBuffer<Downstream>
   
@@ -89,5 +93,3 @@ class RxSubscription<Upstream: ObservableConvertibleType, Downstream: Subscriber
     disposable = nil
   }
 }
-
-#endif

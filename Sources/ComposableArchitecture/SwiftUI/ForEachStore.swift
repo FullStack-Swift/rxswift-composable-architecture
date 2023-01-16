@@ -11,24 +11,27 @@ import SwiftUI
 /// For example, a todos app may define the domain and logic associated with an individual todo:
 ///
 /// ```swift
-/// struct TodoState: Equatable, Identifiable {
-///   let id: UUID
-///   var description = ""
-///   var isComplete = false
+/// struct Todo: ReducerProtocol {
+///   struct State: Equatable, Identifiable {
+///     let id: UUID
+///     var description = ""
+///     var isComplete = false
+///   }
+///
+///   enum Action {
+///     case isCompleteToggled(Bool)
+///     case descriptionChanged(String)
+///   }
+///
+///   func reduce(into state: inout State, action: Action) -> EffectTask<Action> { ... }
 /// }
-/// enum TodoAction {
-///   case isCompleteToggled(Bool)
-///   case descriptionChanged(String)
-/// }
-/// struct TodoEnvironment {}
-/// let todoReducer = Reducer<TodoState, TodoAction, TodoEnvironment { ... }
 /// ```
 ///
 /// As well as a view with a domain-specific store:
 ///
 /// ```swift
 /// struct TodoView: View {
-///   let store: Store<TodoState, TodoAction>
+///   let store: StoreOf<Todo>
 ///   var body: some View { ... }
 /// }
 /// ```
@@ -37,43 +40,50 @@ import SwiftUI
 /// state:
 ///
 /// ```swift
-/// struct AppState: Equatable {
-///   var todos: IdentifiedArrayOf<TodoState> = []
+/// struct Todos: ReducerProtocol {
+///   struct State: Equatable {
+///     var todos: IdentifiedArrayOf<Todo.State> = []
+///   }
+///   ...
 /// }
 /// ```
 ///
 /// Define a case to handle actions sent to the child domain:
 ///
 /// ```swift
-/// enum AppAction {
-///   case todo(id: TodoState.ID, action: TodoAction)
+/// enum Action {
+///   case todo(id: Todo.State.ID, action: Todo.Action)
 /// }
 /// ```
 ///
-/// Enhance its reducer using ``Reducer/forEach(state:action:environment:file:line:)-gvte``:
+/// Enhance its core reducer using ``ReducerProtocol/forEach(_:action:element:file:fileID:line:)``:
 ///
 /// ```swift
-/// let appReducer = todoReducer.forEach(
-///   state: \.todos,
-///   action: /AppAction.todo(id:action:),
-///   environment: { _ in TodoEnvironment() }
-/// )
+/// var body: some ReducerProtocol<State, Action> {
+///   Reduce { state, action in
+///     ...
+///   }
+///   .forEach(\.todos, action: /Action.todo(id:action:)) {
+///     Todo()
+///   }
+/// }
 /// ```
 ///
 /// And finally render a list of `TodoView`s using ``ForEachStore``:
 ///
 /// ```swift
 /// ForEachStore(
-///   self.store.scope(state: \.todos, AppAction.todo(id:action:))
+///   self.store.scope(state: \.todos, action: AppAction.todo(id:action:))
 /// ) { todoStore in
 ///   TodoView(store: todoStore)
 /// }
 /// ```
 ///
-public struct ForEachStore<EachState, EachAction, Data, ID, Content>: DynamicViewContent
-where Data: Collection, ID: Hashable, Content: View {
+public struct ForEachStore<
+  EachState, EachAction, Data: Collection, ID: Hashable, Content: View
+>: DynamicViewContent {
   public let data: Data
-  let content: () -> Content
+  let content: Content
 
   /// Initializes a structure that computes views on demand from a store on a collection of data and
   /// an identified action.
@@ -86,36 +96,48 @@ where Data: Collection, ID: Hashable, Content: View {
     @ViewBuilder content: @escaping (Store<EachState, EachAction>) -> EachContent
   )
   where
-    EachContent: View,
-    Data == IdentifiedArray<ID, EachState>,
-    Content == WithViewStore<
-      OrderedSet<ID>, (ID, EachAction), ForEach<OrderedSet<ID>, ID, EachContent>
-    >
+  Data == IdentifiedArray<ID, EachState>,
+  Content == WithViewStore<
+    OrderedSet<ID>, (ID, EachAction), ForEach<OrderedSet<ID>, ID, EachContent>
+  >
   {
-    self.data = store.state.value
-    self.content = {
-      WithViewStore(store.scope(state: { $0.ids })) { viewStore in
-        ForEach(viewStore.state, id: \.self) { id -> EachContent in
-          // NB: We cache elements here to avoid a potential crash where SwiftUI may re-evaluate
-          //     views for elements no longer in the collection.
-          //
-          // Feedback filed: https://gist.github.com/stephencelis/cdf85ae8dab437adc998fb0204ed9a6b
-          var element = store.state.value[id: id]!
-          return content(
-            store.scope(
-              state: {
-                element = $0[id: id] ?? element
-                return element
-              },
-              action: { (id, $0) }
-            )
-          )
-        }
-      }
+  self.data = store.state.value
+  self.content = WithViewStore(
+    store,
+    observe: { $0.ids },
+    removeDuplicates: areOrderedSetsDuplicates
+  ) { viewStore in
+    ForEach(viewStore.state, id: \.self) { id -> EachContent in
+      // NB: We cache elements here to avoid a potential crash where SwiftUI may re-evaluate
+      //     views for elements no longer in the collection.
+      //
+      // Feedback filed: https://gist.github.com/stephencelis/cdf85ae8dab437adc998fb0204ed9a6b
+      var element = store.state.value[id: id]!
+      return content(
+        store.scope(
+          state: {
+            element = $0[id: id] ?? element
+            return element
+          },
+          action: { (id, $0) }
+        )
+      )
     }
+  }
   }
 
   public var body: some View {
-    self.content()
+    self.content
   }
+}
+
+private func areOrderedSetsDuplicates<ID: Hashable>(lhs: OrderedSet<ID>, rhs: OrderedSet<ID>)
+-> Bool
+{
+  var lhs = lhs
+  var rhs = rhs
+  if memcmp(&lhs, &rhs, MemoryLayout<OrderedSet<ID>>.size) == 0 {
+    return true
+  }
+  return lhs == rhs
 }
