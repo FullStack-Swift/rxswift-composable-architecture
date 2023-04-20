@@ -100,12 +100,25 @@ public extension ObservableType {
   }
 }
 
-public extension ObservableType {
-  func sink(receiveValue: @escaping ((Element) -> Void)) -> Disposable {
+extension ObservableType {
+  public func sink(
+    receiveCompletion: @escaping ((RxSwiftConventionCombine.Completion<Error>) -> Void),
+    receiveValue: @escaping ((Self.Element) -> Void))
+  -> Disposable {
+    subscribe { element in
+      receiveValue(element)
+    } onError: { error in
+      receiveCompletion(.failure(error))
+    } onCompleted: {
+      receiveCompletion(.finished)
+    }
+  }
+
+  public func sink(receiveValue: @escaping ((Element) -> Void)) -> Disposable {
     subscribe(onNext: receiveValue)
   }
 
-  func eraseToAnyPublisher() -> Observable<Element> {
+  public func eraseToAnyPublisher() -> Observable<Element> {
     self.asObservable()
   }
 }
