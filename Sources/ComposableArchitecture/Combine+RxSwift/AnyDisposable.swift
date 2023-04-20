@@ -1,6 +1,6 @@
 import RxSwift
 
-public class AnyDisposable: Disposable, Hashable {
+final public class AnyDisposable: Disposable, Hashable {
   let _dispose: () -> Void
   
   init(_ disposable: Disposable) {
@@ -14,6 +14,10 @@ public class AnyDisposable: Disposable, Hashable {
   public func dispose() {
     _dispose()
   }
+
+  deinit {
+    dispose()
+  }
   
   public static func == (lhs: AnyDisposable, rhs: AnyDisposable) -> Bool {
     return ObjectIdentifier(lhs) == ObjectIdentifier(rhs)
@@ -21,5 +25,11 @@ public class AnyDisposable: Disposable, Hashable {
   
   public func hash(into hasher: inout Hasher) {
     hasher.combine(ObjectIdentifier(self))
+  }
+}
+
+extension Disposable {
+  public func store(in set: inout Set<AnyDisposable>) {
+    set.insert(AnyDisposable(self))
   }
 }

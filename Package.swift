@@ -21,7 +21,6 @@ let package = Package(
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
     .package(url: "https://github.com/google/swift-benchmark", from: "0.1.2"),
     .package(url: "https://github.com/pointfreeco/swift-case-paths", from: "0.10.0"),
-    .package(url: "https://github.com/pointfreeco/swift-clocks", from: "0.1.4"),
     .package(url: "https://github.com/pointfreeco/swift-custom-dump", from: "0.6.0"),
     .package(url: "https://github.com/pointfreeco/swift-dependencies.git", from: "0.4.1"),
     .package(url: "https://github.com/pointfreeco/swift-identified-collections", from: "0.4.1"),
