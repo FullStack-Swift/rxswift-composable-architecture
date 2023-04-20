@@ -2319,8 +2319,7 @@ class TestReducer<State, Action>: ReducerProtocol {
 
       case .publisher, .run:
         let effect = LongLivingEffect(action: action)
-        return
-        effects
+        return effects
           .publisher
           .handleEvents(
             receiveSubscription: { [effectDidSubscribe, weak self] _ in

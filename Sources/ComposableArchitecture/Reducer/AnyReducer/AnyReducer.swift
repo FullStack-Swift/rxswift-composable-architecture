@@ -1057,9 +1057,7 @@ public struct AnyReducer<State, Action, Environment> {
         )
         return .none
       }
-      return
-      self
-        .reducer(
+      return self.reducer(
           &parentState[keyPath: toElementsState][id: id]!,
           action,
           toElementEnvironment(parentEnvironment)
