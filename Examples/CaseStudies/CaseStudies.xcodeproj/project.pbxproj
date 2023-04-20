@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		4F5AC11F24ECC7E4009DC50B /* 01-GettingStarted-SharedStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F5AC11E24ECC7E4009DC50B /* 01-GettingStarted-SharedStateTests.swift */; };
+		87FD201529F0E54000CB5AEA /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = 87FD201429F0E54000CB5AEA /* ComposableArchitecture */; };
 		CA0C0C4724B89BEC00CBDD8A /* 04-HigherOrderReducers-LifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA0C0C4624B89BEC00CBDD8A /* 04-HigherOrderReducers-LifecycleTests.swift */; };
 		CA0C51FB245389CC00A04EAB /* 04-HigherOrderReducers-ReusableOfflineDownloadsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA0C51FA245389CC00A04EAB /* 04-HigherOrderReducers-ReusableOfflineDownloadsTests.swift */; };
 		CA25E5D224463AD700DA666A /* 01-GettingStarted-Bindings-Basics.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA25E5D124463AD700DA666A /* 01-GettingStarted-Bindings-Basics.swift */; };
@@ -38,13 +39,10 @@
 		CAF88E7524B8E26D00539345 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAF88E7424B8E26D00539345 /* RootView.swift */; };
 		CAF88E7724B8E26E00539345 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CAF88E7624B8E26E00539345 /* Assets.xcassets */; };
 		CAF88E8824B8E26E00539345 /* FocusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAF88E8724B8E26E00539345 /* FocusTests.swift */; };
-		CAF88E9124B8E3AF00539345 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = CAF88E9024B8E3AF00539345 /* ComposableArchitecture */; };
 		CAF88E9324B8E3D000539345 /* Core.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAF88E9224B8E3D000539345 /* Core.swift */; };
 		CAF88E9524B8E4D500539345 /* FocusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAF88E9424B8E4D500539345 /* FocusView.swift */; };
 		DC07231724465D1E003A8B65 /* 02-Effects-TimersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC07231624465D1E003A8B65 /* 02-Effects-TimersTests.swift */; };
 		DC072322244663B1003A8B65 /* 03-Navigation-Sheet-LoadThenPresent.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC072321244663B1003A8B65 /* 03-Navigation-Sheet-LoadThenPresent.swift */; };
-		DC13940E2469E25C00EE1157 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = DC13940D2469E25C00EE1157 /* ComposableArchitecture */; };
-		DC1394102469E27300EE1157 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = DC13940F2469E27300EE1157 /* ComposableArchitecture */; };
 		DC25DC5F2450F13200082E81 /* IfLetStoreController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC25DC5E2450F13200082E81 /* IfLetStoreController.swift */; };
 		DC25DC612450F2B000082E81 /* LoadThenNavigate.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC25DC602450F2B000082E81 /* LoadThenNavigate.swift */; };
 		DC25DC642450F2DF00082E81 /* ActivityIndicatorViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC25DC632450F2DF00082E81 /* ActivityIndicatorViewController.swift */; };
@@ -152,6 +150,7 @@
 
 /* Begin PBXFileReference section */
 		4F5AC11E24ECC7E4009DC50B /* 01-GettingStarted-SharedStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "01-GettingStarted-SharedStateTests.swift"; sourceTree = "<group>"; };
+		87FD201229F0E4D500CB5AEA /* rxswift-composable-architecture */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = "rxswift-composable-architecture"; path = ../..; sourceTree = "<group>"; };
 		CA0C0C4624B89BEC00CBDD8A /* 04-HigherOrderReducers-LifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "04-HigherOrderReducers-LifecycleTests.swift"; sourceTree = "<group>"; };
 		CA0C51FA245389CC00A04EAB /* 04-HigherOrderReducers-ReusableOfflineDownloadsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "04-HigherOrderReducers-ReusableOfflineDownloadsTests.swift"; sourceTree = "<group>"; };
 		CA25E5D124463AD700DA666A /* 01-GettingStarted-Bindings-Basics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "01-GettingStarted-Bindings-Basics.swift"; sourceTree = "<group>"; };
@@ -216,7 +215,6 @@
 		DC89C41C24460F96006900B9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		DC89C42424460F96006900B9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		DC89C42924460F96006900B9 /* SwiftUICaseStudiesTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SwiftUICaseStudiesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		DC89C43824460FC7006900B9 /* swift-composable-architecture */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-composable-architecture"; path = ../..; sourceTree = "<group>"; };
 		DC89C43924460FFF006900B9 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		DC89C4432446111B006900B9 /* 01-GettingStarted-Counter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "01-GettingStarted-Counter.swift"; sourceTree = "<group>"; };
 		DC89C448244618D5006900B9 /* 03-Navigation-LoadThenNavigate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "03-Navigation-LoadThenNavigate.swift"; sourceTree = "<group>"; };
@@ -241,7 +239,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CAF88E9124B8E3AF00539345 /* ComposableArchitecture in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -256,7 +253,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				DC1394102469E27300EE1157 /* ComposableArchitecture in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -271,7 +267,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				DC13940E2469E25C00EE1157 /* ComposableArchitecture in Frameworks */,
+				87FD201529F0E54000CB5AEA /* ComposableArchitecture in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -285,6 +281,13 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		87FD201329F0E54000CB5AEA /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		CA6AC25F2451131C00C71CB3 /* 04-HigherOrderReducers-ResuableOfflineDownloads */ = {
 			isa = PBXGroup;
 			children = (
@@ -364,7 +367,7 @@
 		DC89C40A24460F95006900B9 = {
 			isa = PBXGroup;
 			children = (
-				DC89C43824460FC7006900B9 /* swift-composable-architecture */,
+				87FD201229F0E4D500CB5AEA /* rxswift-composable-architecture */,
 				DC89C43924460FFF006900B9 /* README.md */,
 				DC89C41424460F95006900B9 /* Products */,
 				DC89C41524460F95006900B9 /* SwiftUICaseStudies */,
@@ -373,6 +376,7 @@
 				CAF88E8624B8E26E00539345 /* tvOSCaseStudiesTests */,
 				DC4C6EA82450DD380066A05D /* UIKitCaseStudies */,
 				DC4C6EBF2450DD390066A05D /* UIKitCaseStudiesTests */,
+				87FD201329F0E54000CB5AEA /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -479,7 +483,6 @@
 			);
 			name = tvOSCaseStudies;
 			packageProductDependencies = (
-				CAF88E9024B8E3AF00539345 /* ComposableArchitecture */,
 			);
 			productName = tvOSCaseStudies;
 			productReference = CAF88E7024B8E26D00539345 /* tvOSCaseStudies.app */;
@@ -518,7 +521,6 @@
 			);
 			name = UIKitCaseStudies;
 			packageProductDependencies = (
-				DC13940F2469E27300EE1157 /* ComposableArchitecture */,
 			);
 			productName = UIKitCaseStudies;
 			productReference = DC4C6EA72450DD380066A05D /* UIKitCaseStudies.app */;
@@ -560,7 +562,7 @@
 			);
 			name = SwiftUICaseStudies;
 			packageProductDependencies = (
-				DC13940D2469E25C00EE1157 /* ComposableArchitecture */,
+				87FD201429F0E54000CB5AEA /* ComposableArchitecture */,
 			);
 			productName = CaseStudies;
 			productReference = DC89C41324460F95006900B9 /* SwiftUICaseStudies.app */;
@@ -1260,15 +1262,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		CAF88E9024B8E3AF00539345 /* ComposableArchitecture */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = ComposableArchitecture;
-		};
-		DC13940D2469E25C00EE1157 /* ComposableArchitecture */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = ComposableArchitecture;
-		};
-		DC13940F2469E27300EE1157 /* ComposableArchitecture */ = {
+		87FD201429F0E54000CB5AEA /* ComposableArchitecture */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ComposableArchitecture;
 		};

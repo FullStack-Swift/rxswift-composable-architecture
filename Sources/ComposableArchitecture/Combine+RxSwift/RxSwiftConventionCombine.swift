@@ -104,6 +104,10 @@ public extension ObservableType {
   func sink(receiveValue: @escaping ((Element) -> Void)) -> Disposable {
     subscribe(onNext: receiveValue)
   }
+
+  func eraseToAnyPublisher() -> Observable<Element> {
+    self.asObservable()
+  }
 }
 
 public extension Disposable {

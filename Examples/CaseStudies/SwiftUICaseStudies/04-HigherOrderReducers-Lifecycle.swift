@@ -29,7 +29,8 @@ struct LifecycleReducer<Wrapped: ReducerProtocol>: ReducerProtocol {
         return onAppear.map(Action.wrapped)
 
       case .onDisappear:
-        return onDisappear.fireAndForget()
+//        return onDisappear.fireAndForget()
+          return .none
 
       case .wrapped:
         return .none
