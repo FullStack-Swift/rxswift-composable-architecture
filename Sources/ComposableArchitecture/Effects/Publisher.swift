@@ -57,6 +57,7 @@ extension EffectPublisher: ObservableType {
                   An action was sent from a completed effect:
 
                     Action:
+                      \(debugCaseOutput($0))
 
                   Avoid sending actions using the 'send' argument from 'EffectTask.run' after \
                   the effect has completed. This can happen if you escape the 'send' argument in \

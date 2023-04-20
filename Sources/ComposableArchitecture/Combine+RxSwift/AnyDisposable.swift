@@ -6,6 +6,10 @@ class AnyDisposable: Disposable, Hashable {
   init(_ disposable: Disposable) {
     _dispose = disposable.dispose
   }
+
+  init (_ _dispose: @escaping () -> Void) {
+    self._dispose = _dispose
+  }
   
   func dispose() {
     _dispose()
