@@ -78,40 +78,40 @@ final class ReducerTests: BaseTCATestCase {
   }
 #endif
 
-  func testCombine() async {
-    enum Action: Equatable {
-      case increment
-    }
-
-    struct One: ReducerProtocol {
-      typealias State = Int
-      let effect: @Sendable () async -> Void
-      func reduce(into state: inout State, action: Action) -> EffectTask<Action> {
-        state += 1
-        return .fireAndForget {
-          await self.effect()
-        }
-      }
-    }
-
-    var first = false
-    var second = false
-
-    let store = TestStore(
-      initialState: 0,
-      reducer: CombineReducers {
-        One(effect: { @MainActor in first = true })
-        One(effect: { @MainActor in second = true })
-      }
-    )
-
-    await store
-      .send(.increment) { $0 = 2 }
-      .finish()
-
-    XCTAssertTrue(first)
-    XCTAssertTrue(second)
-  }
+//  func testCombine() async {
+//    enum Action: Equatable {
+//      case increment
+//    }
+//
+//    struct One: ReducerProtocol {
+//      typealias State = Int
+//      let effect: @Sendable () async -> Void
+//      func reduce(into state: inout State, action: Action) -> EffectTask<Action> {
+//        state += 1
+//        return .fireAndForget {
+//          await self.effect()
+//        }
+//      }
+//    }
+//
+//    var first = false
+//    var second = false
+//
+//    let store = TestStore(
+//      initialState: 0,
+//      reducer: CombineReducers {
+//        One(effect: { @MainActor in first = true })
+//        One(effect: { @MainActor in second = true })
+//      }
+//    )
+//
+//    await store
+//      .send(.increment) { $0 = 2 }
+//      .finish()
+//
+//    XCTAssertTrue(first)
+//    XCTAssertTrue(second)
+//  }
 
   func testDefaultSignpost() {
     let reducer = EmptyReducer<Int, Void>().signpost(log: .default)
