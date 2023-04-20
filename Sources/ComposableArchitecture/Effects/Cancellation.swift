@@ -1,7 +1,7 @@
 import RxSwift
 import Foundation
 
-typealias AnyCancellable = AnyDisposable
+//typealias AnyCancellable = AnyDisposable
 
 extension EffectPublisher {
   /// Turns an effect into one that is capable of being canceled.
@@ -37,44 +37,6 @@ extension EffectPublisher {
       case let .publisher(publisher):
         return Self(
           operation: .publisher(
-//            Deferred {
-//              ()
-//              -> Publishers.HandleEvents<
-//                Publishers.PrefixUntilOutput<
-//                  AnyPublisher<Action, Failure>, PassthroughSubject<Void, Never>
-//              >
-//              > in
-//              _cancellablesLock.lock()
-//              defer { _cancellablesLock.unlock() }
-//
-//              if cancelInFlight {
-//                _cancellationCancellables.cancel(id: id)
-//              }
-//
-//              let cancellationSubject = PassthroughSubject<Void, Never>()
-//
-//              var cancellable: AnyCancellable!
-//              cancellable = AnyCancellable {
-//                _cancellablesLock.sync {
-//                  cancellationSubject.send(())
-//                  cancellationSubject.send(completion: .finished)
-//                  _cancellationCancellables.remove(cancellable, at: id)
-//                }
-//              }
-//
-//              return publisher.prefix(untilOutputFrom: cancellationSubject)
-//                .handleEvents(
-//                  receiveSubscription: { _ in
-//                    _cancellablesLock.sync {
-//                      _cancellationCancellables.insert(cancellable, at: id)
-//                    }
-//                  },
-//                  receiveCompletion: { _ in cancellable.cancel() },
-//                  receiveCancel: cancellable.cancel
-//                )
-//            }
-//              .eraseToAnyPublisher()
-
             Observable<Action>.deferred {
               _cancellablesLock.lock()
               defer { _cancellablesLock.unlock() }
@@ -82,8 +44,8 @@ extension EffectPublisher {
                 _cancellationCancellables.cancel(id: id)
               }
               let cancellationSubject = PublishSubject<Void>()
-              var cancellable: AnyCancellable!
-              cancellable = AnyCancellable {
+              var cancellable: AnyDisposable!
+              cancellable = AnyDisposable {
                 _cancellablesLock.sync {
                   cancellationSubject.send(())
                   cancellationSubject.send(completion: .finished)
@@ -112,49 +74,6 @@ extension EffectPublisher {
           }
         )
     }
-//    let effect = Observable<Value>.deferred {
-//      cancellablesLock.lock()
-//      defer { cancellablesLock.unlock() }
-//
-//      let subject = PublishSubject<Value>()
-//      var values: [Value] = []
-//      var isCaching = true
-//      let disposable =
-//      self
-//        .do(onNext: { val in
-//          guard isCaching else { return }
-//          values.append(val)
-//        })
-//          .subscribe(subject)
-//
-//          var cancellationDisposable: AnyDisposable!
-//          cancellationDisposable = AnyDisposable(
-//            Disposables.create {
-//              cancellablesLock.sync {
-//                subject.onCompleted()
-//                disposable.dispose()
-//                cancellationCancellables[id]?.remove(cancellationDisposable)
-//                if cancellationCancellables[id]?.isEmpty == .some(true) {
-//                  cancellationCancellables[id] = nil
-//                }
-//              }
-//            })
-//
-//          cancellationCancellables[id, default: []].insert(
-//            cancellationDisposable
-//          )
-//
-//          return Observable.from(values)
-//          .concat(subject)
-//          .do(
-//            onError: { _ in cancellationDisposable.dispose() },
-//            onCompleted: cancellationDisposable.dispose,
-//            onSubscribed: { isCaching = false },
-//            onDispose: cancellationDisposable.dispose
-//          )
-//            }
-//      .eraseToEffect()
-//    return cancelInFlight ? .concatenate(.cancel(id: id), effect) : effect
   }
 
   /// Turns an effect into one that is capable of being canceled.
@@ -268,12 +187,12 @@ public func withTaskCancellation<T: Sendable>(
   cancelInFlight: Bool = false,
   operation: @Sendable @escaping () async throws -> T
 ) async rethrows -> T {
-  let (cancellable, task) = _cancellablesLock.sync { () -> (AnyCancellable, Task<T, Error>) in
+  let (cancellable, task) = _cancellablesLock.sync { () -> (AnyDisposable, Task<T, Error>) in
     if cancelInFlight {
       _cancellationCancellables.cancel(id: id)
     }
     let task = Task { try await operation() }
-    let cancellable = AnyCancellable { task.cancel() }
+    let cancellable = AnyDisposable { task.cancel() }
     _cancellationCancellables.insert(cancellable, at: id)
     return (cancellable, task)
   }
@@ -294,12 +213,12 @@ public func withTaskCancellation<T: Sendable>(
   cancelInFlight: Bool = false,
   operation: @Sendable @escaping () async throws -> T
 ) async rethrows -> T {
-  let (cancellable, task) = _cancellablesLock.sync { () -> (AnyCancellable, Task<T, Error>) in
+  let (cancellable, task) = _cancellablesLock.sync { () -> (AnyDisposable, Task<T, Error>) in
     if cancelInFlight {
       _cancellationCancellables.cancel(id: id)
     }
     let task = Task { try await operation() }
-    let cancellable = AnyCancellable { task.cancel() }
+    let cancellable = AnyDisposable { task.cancel() }
     _cancellationCancellables.insert(cancellable, at: id)
     return (cancellable, task)
   }
@@ -410,10 +329,11 @@ extension Result: _ErrorMechanism {}
 
 @_spi(Internals)
 public class CancellablesCollection {
-  var storage: [_CancelID: Set<AnyCancellable>] = [:]
+
+  var storage: [_CancelID: Set<AnyDisposable>] = [:]
 
   func insert(
-    _ cancellable: AnyCancellable,
+    _ cancellable: AnyDisposable,
     at id: AnyHashable
   ) {
     let cancelID = _CancelID(id: id)
@@ -421,7 +341,7 @@ public class CancellablesCollection {
   }
 
   func remove(
-    _ cancellable: AnyCancellable,
+    _ cancellable: AnyDisposable,
     at id: AnyHashable
   ) {
     let cancelID = _CancelID(id: id)

@@ -1,171 +1,159 @@
-//import ComposableArchitecture
-//import RxSwift
-//import RxTest
-//import XCTest
+import RxSwift
+import ComposableArchitecture
+import XCTest
+
+@MainActor
+final class ComposableArchitectureTests: BaseTCATestCase {
+  let cancellables = DisposeBag()
+
+  func testScheduling() async {
+    struct Counter: ReducerProtocol {
+      typealias State = Int
+      enum Action: Equatable {
+        case incrAndSquareLater
+        case incrNow
+        case squareNow
+      }
+      @Dependency(\.mainQueue) var mainQueue
+      func reduce(into state: inout State, action: Action) -> EffectTask<Action> {
+        switch action {
+          case .incrAndSquareLater:
+            return .merge(
+              EffectTask(value: .incrNow)
+                .delay(.seconds(2), scheduler: MainScheduler())
+                .eraseToEffect(),
+              EffectTask(value: .squareNow)
+                .delay(.seconds(1), scheduler: MainScheduler())
+                .eraseToEffect(),
+              EffectTask(value: .squareNow)
+                .delay(.seconds(2), scheduler: MainScheduler())
+                .eraseToEffect()
+            )
+          case .incrNow:
+            state += 1
+            return .none
+          case .squareNow:
+            state *= state
+            return .none
+        }
+      }
+    }
+
+    let mainQueue = DispatchQueue.test
+
+    let store = TestStore(
+      initialState: 2,
+      reducer: Counter()
+    ) {
+      $0.mainQueue = mainQueue.eraseToAnyScheduler()
+    }
+
+    await store.send(.incrAndSquareLater)
+    await mainQueue.advance(by: 1)
+    await store.receive(.squareNow) { $0 = 4 }
+    await mainQueue.advance(by: 1)
+    await store.receive(.incrNow) { $0 = 5 }
+    await store.receive(.squareNow) { $0 = 25 }
+
+    await store.send(.incrAndSquareLater)
+    await mainQueue.advance(by: 2)
+    await store.receive(.squareNow) { $0 = 625 }
+    await store.receive(.incrNow) { $0 = 626 }
+    await store.receive(.squareNow) { $0 = 391876 }
+  }
+
+//  func testSimultaneousWorkOrdering() {
+//    let mainQueue = DispatchQueue.test
 //
-//final class ComposableArchitectureTests: XCTestCase {
+//    var values: [Int] = []
+//    mainQueue.schedule(after: mainQueue.now, interval: 1) { values.append(1) }
+//      .store(in: &self.cancellables)
+//    mainQueue.schedule(after: mainQueue.now, interval: 2) { values.append(42) }
+//      .store(in: &self.cancellables)
 //
-////  func testScheduling() {
-////    enum CounterAction: Equatable {
-////      case incrAndSquareLater
-////      case incrNow
-////      case squareNow
-////    }
-////
-////    let counterReducer = Reducer<Int, CounterAction, TestScheduler> {
-////      state, action, scheduler in
-////      switch action {
-////      case .incrAndSquareLater:
-////        return .merge(
-////          Effect(value: .incrNow)
-////            .delay(.seconds(2), scheduler: scheduler)
-////            .eraseToEffect(),
-////          Effect(value: .squareNow)
-////            .delay(.seconds(1), scheduler: scheduler)
-////            .eraseToEffect(),
-////          Effect(value: .squareNow)
-////            .delay(.seconds(2), scheduler: scheduler)
-////            .eraseToEffect()
-////        )
-////      case .incrNow:
-////        state += 1
-////        return .none
-////      case .squareNow:
-////        state *= state
-////        return .none
-////      }
-////    }
-////
-////    let scheduler: TestScheduler  = TestScheduler.default()
-////
-////    let store = TestStore(
-////      initialState: 2,
-////      reducer: counterReducer,
-////      environment: scheduler
-////    )
-////
-////    store.send(.incrAndSquareLater)
-////    scheduler.advanceTo(1)
-////    store.receive(.squareNow) { $0 = 4 }
-////    scheduler.advanceTo(1)
-////    store.receive(.incrNow) { $0 = 5 }
-////    store.receive(.squareNow) { $0 = 25 }
-////
-////    store.send(.incrAndSquareLater)
-////    scheduler.advanceTo(2)
-////    store.receive(.squareNow) { $0 = 625 }
-////    store.receive(.incrNow) { $0 = 626 }
-////    store.receive(.squareNow) { $0 = 391876 }
-////  }
 //
-////  func testSimultaneousWorkOrdering() {
-////    let testScheduler = TestScheduler<
-////      DispatchQueue.SchedulerTimeType, DispatchQueue.SchedulerOptions
-////    >(
-////      now: .init(.init(uptimeNanoseconds: 1))
-////    )
-////
-////    var values: [Int] = []
-////    testScheduler.schedule(after: testScheduler.now, interval: 1) { values.append(1) }
-////      .store(in: &self.cancellables)
-////    testScheduler.schedule(after: testScheduler.now, interval: 2) { values.append(42) }
-////      .store(in: &self.cancellables)
-////
-////    XCTAssertNoDifference(values, [])
-////    testScheduler.advance()
-////    XCTAssertNoDifference(values, [1, 42])
-////    testScheduler.advance(by: 2)
-////    XCTAssertNoDifference(values, [1, 42, 1, 1, 42])
-////  }
-//
-//  func testLongLivingEffects() {
-//    typealias Environment = (
-//      startEffect: Effect<Void>,
-//      stopEffect: Effect<Never>
-//    )
-//
-//    enum Action { case end, incr, start }
-//
-//    let reducer = Reducer<Int, Action, Environment> { state, action, environment in
-//      switch action {
-//      case .end:
-//        return environment.stopEffect.fireAndForget()
-//      case .incr:
-//        state += 1
-//        return .none
-//      case .start:
-//        return environment.startEffect.map { Action.incr }
-//      }
-//    }
-//
-//    let subject = PublishSubject<Void>()
-//
-//    let store = TestStore(
-//      initialState: 0,
-//      reducer: reducer,
-//      environment: (
-//        startEffect: subject.eraseToEffect(),
-//        stopEffect: .fireAndForget { subject.onCompleted() }
-//      )
-//    )
-//
-//    store.send(.start)
-//    store.send(.incr) { $0 = 1 }
-//    subject.onNext(())
-//    store.receive(.incr) { $0 = 2 }
-//    store.send(.end)
+//    XCTAssertEqual(values, [])
+//    mainQueue.advance()
+//    XCTAssertEqual(values, [1, 42])
+//    mainQueue.advance(by: 2)
+//    XCTAssertEqual(values, [1, 42, 1, 1, 42])
 //  }
-//
-//  func testCancellation() {
-//    enum Action: Equatable {
-//      case cancel
-//      case incr
-//      case response(Int)
-//    }
-//
-//    struct Environment {
-//      let fetch: (Int) -> Effect<Int>
-//      let mainQueue: TestScheduler
-//    }
-//
-//    let reducer = Reducer<Int, Action, Environment> { state, action, environment in
-//      struct CancelId: Hashable {}
-//
-//      switch action {
-//      case .cancel:
-//        return .cancel(id: CancelId())
-//
-//      case .incr:
-//        state += 1
-//        return environment.fetch(state)
-//          .observe(on: environment.mainQueue)
-//          .map(Action.response)
-//          .eraseToEffect()
-//          .cancellable(id: CancelId())
-//
-//      case let .response(value):
-//        state = value
-//        return .none
-//      }
-//    }
-//
-//    let scheduler = TestScheduler.default()
-//
-//    let store = TestStore(
-//      initialState: 0,
-//      reducer: reducer,
-//      environment: Environment(
-//        fetch: { value in Effect(value: value * value) },
-//        mainQueue: scheduler
-//      )
-//    )
-//
-//    store.send(.incr) { $0 = 1 }
-//    scheduler.advance()
-//    store.receive(.response(1)) { $0 = 1 }
-//
-//    store.send(.incr) { $0 = 2 }
-//    store.send(.cancel)
-//    scheduler.run()
-//  }
-//}
+
+  func testLongLivingEffects() async {
+    enum Action { case end, incr, start }
+
+    let effect = AsyncStream<Void>.streamWithContinuation()
+
+    let reducer = Reduce<Int, Action> { state, action in
+      switch action {
+        case .end:
+          return .fireAndForget {
+            effect.continuation.finish()
+          }
+        case .incr:
+          state += 1
+          return .none
+        case .start:
+          return .run { send in
+            for await _ in effect.stream {
+              await send(.incr)
+            }
+          }
+      }
+    }
+
+    let store = TestStore(initialState: 0, reducer: reducer)
+
+    await store.send(.start)
+    await store.send(.incr) { $0 = 1 }
+    effect.continuation.yield()
+    await store.receive(.incr) { $0 = 2 }
+    await store.send(.end)
+  }
+
+  func testCancellation() async {
+    await _withMainSerialExecutor {
+      let mainQueue = DispatchQueue.test
+
+      enum Action: Equatable {
+        case cancel
+        case incr
+        case response(Int)
+      }
+
+      let reducer = Reduce<Int, Action> { state, action in
+        enum CancelID {}
+
+        switch action {
+          case .cancel:
+            return .cancel(id: CancelID.self)
+
+          case .incr:
+            state += 1
+            return .task { [state] in
+              try await mainQueue.sleep(for: .seconds(1))
+              return .response(state * state)
+            }
+            .cancellable(id: CancelID.self)
+
+          case let .response(value):
+            state = value
+            return .none
+        }
+      }
+
+      let store = TestStore(
+        initialState: 0,
+        reducer: reducer
+      )
+
+      await store.send(.incr) { $0 = 1 }
+      await mainQueue.advance(by: .seconds(1))
+      await store.receive(.response(1))
+
+      await store.send(.incr) { $0 = 2 }
+      await store.send(.cancel)
+      await store.finish()
+    }
+  }
+}
