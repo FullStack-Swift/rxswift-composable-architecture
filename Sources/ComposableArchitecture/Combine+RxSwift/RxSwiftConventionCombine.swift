@@ -89,12 +89,12 @@ public extension ObservableType {
   ) -> Observable<Element> {
     self.do { onNextValue in
       receiveOutput?(onNextValue)
-      receiveRequest?(())
     } onError: { error in
       receiveCompletion?(.failure(error))
     } onCompleted: {
       receiveCompletion?(.finished)
     } onSubscribe: {
+      receiveRequest?(())
       receiveSubscription?(())
     }
   }
