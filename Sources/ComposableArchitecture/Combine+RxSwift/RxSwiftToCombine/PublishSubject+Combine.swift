@@ -9,7 +9,7 @@ import RxSwift
 public final class RxPassthroughSubject<Output>: Combine.Subject {
   private let rxSubject: PublishSubject<Output>
   private let subject = PassthroughSubject<Output, Failure>()
-  private let subscription: AnyCancellable?
+  private let subscription: Combine.AnyCancellable?
   
   init(rxSubject: PublishSubject<Output>) {
     self.rxSubject = rxSubject

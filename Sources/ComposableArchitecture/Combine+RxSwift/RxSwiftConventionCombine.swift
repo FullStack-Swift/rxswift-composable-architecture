@@ -1,6 +1,8 @@
 import RxSwift
 import Foundation
 
+typealias AnyCancellable = AnyDisposable
+
 public enum RxSwiftConventionCombine {
   public enum Completion<Failure> where Failure : Error {
     case finished

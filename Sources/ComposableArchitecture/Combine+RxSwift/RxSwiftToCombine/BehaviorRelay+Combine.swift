@@ -10,7 +10,7 @@ import RxRelay
 public final class RxCurrentValueRelay<Output>: Combine.Subject {
   private let rxRelay: BehaviorRelay<Output>
   private let subject: CurrentValueSubject<Output, Never>
-  private let subscription: AnyCancellable?
+  private let subscription: Combine.AnyCancellable?
   
   public var value: Output {
     get { subject.value }

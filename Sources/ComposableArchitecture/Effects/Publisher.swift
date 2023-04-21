@@ -31,7 +31,9 @@ extension EffectPublisher: ObservableType {
 
   public typealias Element = Action
 
-  public func subscribe<Observer>(_ observer: Observer) -> RxSwift.Disposable where Observer : RxSwift.ObserverType, Action == Observer.Element {
+  public func subscribe<Observer>(
+    _ observer: Observer
+  ) -> RxSwift.Disposable where Observer : RxSwift.ObserverType, Action == Observer.Element {
     self.publisher.subscribe(observer)
   }
 
@@ -73,7 +75,7 @@ extension EffectPublisher: ObservableType {
             }
             await operation(send)
           }
-          return Disposables.create {
+          return AnyCancellable {
             task.cancel()
           }
         }
@@ -115,8 +117,8 @@ extension EffectPublisher {
     watchOS, deprecated: 9999.0,
     message: "Iterate over 'Publisher.values' in an 'EffectTask.run', instead."
   )
-  public init<P: Observable<Action>>(_ publisher: P) {
-    self.operation = .publisher(publisher)
+  public init<P: ObservableType>(_ publisher: P) where P.Element == Action {
+    self.operation = .publisher(publisher.eraseToAnyPublisher())
   }
   
   /// Initializes an effect that immediately emits the value passed in.
@@ -194,8 +196,8 @@ extension EffectPublisher {
   @available(tvOS, deprecated: 9999.0, message: "Use 'EffectTask.task', instead.")
   @available(watchOS, deprecated: 9999.0, message: "Use 'EffectTask.task', instead.")
   public static func future(
-    _ attemptToFulfill: @escaping (@escaping (Result<Action, any Error>) -> Void) -> Void
-  ) -> Self {
+    _ attemptToFulfill: @escaping (@escaping (Result<Action, Failure>) -> Void) -> Void
+  ) -> Self where Failure == any Error {
     withEscapedDependencies { escaped in
       let publisher = Observable<Action>.deferred {
         escaped.yield {
@@ -241,7 +243,9 @@ extension EffectPublisher {
   @available(macOS, deprecated: 9999.0, message: "Use 'EffectTask.task', instead.")
   @available(tvOS, deprecated: 9999.0, message: "Use 'EffectTask.task', instead.")
   @available(watchOS, deprecated: 9999.0, message: "Use 'EffectTask.task', instead.")
-  public static func result(_ attemptToFulfill: @escaping () -> Result<Action, any Error>) -> Self {
+  public static func result(
+    _ attemptToFulfill: @escaping () -> Result<Action, Failure>
+  ) -> Self where Failure == any Error {
     .future { $0(attemptToFulfill()) }
   }
   
@@ -376,6 +380,8 @@ extension Observable {
 
   public typealias Output = Element
 
+  public typealias Failure = Swift.Error
+  
   /// Turns any publisher into an ``EffectPublisher``.
   ///
   /// This can be useful for when you perform a chain of publisher transformations in a reducer, and
@@ -440,7 +446,7 @@ extension Observable {
     watchOS, deprecated: 9999.0,
     message: "Iterate over 'Publisher.values' in an 'EffectTask.run', instead."
   )
-  public func eraseToEffect<T, Failure>(
+  public func eraseToEffect<T>(
     _ transform: @escaping (Output) -> T
   ) -> EffectPublisher<T, Failure> {
     self.map(
@@ -485,7 +491,7 @@ extension Observable {
     watchOS, deprecated: 9999.0,
     message: "Iterate over 'Publisher.values' in an 'EffectTask.run', instead."
   )
-  public func catchToEffect() -> EffectTask<Result<Output, Error>> {
+  public func catchToEffect() -> EffectTask<Result<Output, Failure>> {
     self.catchToEffect { $0 }
   }
   
@@ -521,7 +527,7 @@ extension Observable {
     message: "Iterate over 'Publisher.values' in an 'EffectTask.run', instead."
   )
   public func catchToEffect<T>(
-    _ transform: @escaping (Result<Output, Error>) -> T
+    _ transform: @escaping (Result<Output, Failure>) -> T
   ) -> EffectTask<T> {
     self
       .map(

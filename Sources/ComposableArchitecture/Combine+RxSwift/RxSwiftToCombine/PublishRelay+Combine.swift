@@ -10,7 +10,7 @@ import RxRelay
 public final class RxPassthroughRelay<Output>: Combine.Subject {
   private let rxRelay: PublishRelay<Output>
   private let subject = PassthroughSubject<Output, Never>()
-  private let subscription: AnyCancellable?
+  private let subscription: Combine.AnyCancellable?
   
   init(rxRelay: PublishRelay<Output>) {
     self.rxRelay = rxRelay

@@ -32,7 +32,6 @@ let package = Package(
       name: "ComposableArchitecture",
       dependencies: [
         .product(name: "RxRelay", package: "RxSwift"),
-        .product(name: "RxTest", package: "RxSwift"),
         .product(name: "CasePaths", package: "swift-case-paths"),
         .product(name: "CustomDump", package: "swift-custom-dump"),
         .product(name: "Dependencies", package: "swift-dependencies"),
@@ -43,6 +42,7 @@ let package = Package(
     .testTarget(
       name: "ComposableArchitectureTests",
       dependencies: [
+        .product(name: "RxTest", package: "RxSwift"),
         "_CAsyncSupport",
         "ComposableArchitecture",
       ]

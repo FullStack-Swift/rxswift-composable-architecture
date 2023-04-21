@@ -9,7 +9,7 @@ import RxSwift
 public final class RxCurrentValueSubject<Output>: Combine.Subject {
   private let rxSubject: BehaviorSubject<Output>
   private let subject: CurrentValueSubject<Output, Failure>
-  private let subscription: AnyCancellable?
+  private let subscription: Combine.AnyCancellable?
   
   public var value: Output {
     get { subject.value }
