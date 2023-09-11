@@ -1,6 +1,5 @@
 #if canImport(Combine)
 import Combine
-import RxSwift
 
 // MARK: - Behavior Subject as Combine Subject
 

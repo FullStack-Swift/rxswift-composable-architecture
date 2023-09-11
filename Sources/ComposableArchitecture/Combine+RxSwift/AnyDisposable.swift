@@ -1,5 +1,3 @@
-import RxSwift
-
 final public class AnyDisposable: Disposable, Hashable {
   let _dispose: () -> Void
   
@@ -32,4 +30,22 @@ extension Disposable {
   public func store(in set: inout Set<AnyDisposable>) {
     set.insert(AnyDisposable(self))
   }
+  
+  public func store(in disposeBag: DisposeBag) {
+    disposeBag.insert(self)
+  }
+  
+  public func store(in disposeBag: inout DisposeBag) {
+    disposeBag.insert(self)
+  }
 }
+
+#if(canImport(Combine))
+import Combine
+
+extension Cancellable {
+  public func store(in set: inout Set<AnyDisposable>) {
+    set.insert(AnyDisposable{ self.cancel() })
+  }
+}
+#endif

@@ -1,11 +1,16 @@
-import RxSwift
 import Foundation
 
-typealias AnyCancellable = AnyDisposable
+public typealias AnyCancellable = AnyDisposable
 
-public enum RxSwiftConventionCombine {
-  public enum Completion<Failure> where Failure : Error {
+public enum RxCombine {
+  
+  /// A signal that a publisher doesn’t produce additional elements, either due to normal completion or an error.
+  public enum Completion<Failure> where Failure: Error {
+    
+    /// The publisher finished normally.
     case finished
+    
+    /// The publisher stopped publishing due to the indicated error.
     case failure(Failure)
 
     public init(failure: Failure) {
@@ -24,7 +29,7 @@ public extension ObserverType {
   /// - Completion.finished:  Convenience method equivalent to `on(.completed)`
   /// - Completion.failure: Convenience method equivalent to `on(.error(Swift.Error))`
   /// - parameter completion: Completion to send to observer(s)
-  func send(completion: RxSwiftConventionCombine.Completion<Error>) {
+  func send(completion: RxCombine.Completion<any Error>) {
     switch completion {
       case .finished:
         onCompleted()
@@ -41,8 +46,35 @@ public extension ObserverType where Element == Void {
 }
 
 public extension ObservableType {
+  /**
+   Returns the elements from the source observable sequence until the other observable sequence produces an element.
+   
+   - seealso: [takeUntil operator on reactivex.io](http://reactivex.io/documentation/operators/takeuntil.html)
+   
+   - parameter other: Observable sequence that terminates propagation of elements of the source sequence.
+   - returns: An observable sequence containing the elements of the source sequence up to the point the other sequence interrupted further propagation.
+   */
   func prefix(untilOutputFrom: any ObservableType) -> Observable<Element> {
     take(until: untilOutputFrom)
+  }
+  
+  /// Omits the specified number of elements before republishing subsequent elements.
+  ///
+  /// Use ``Publisher/dropFirst(_:)`` when you want to drop the first `n` elements from the upstream publisher, and republish the remaining elements.
+  ///
+  /// The example below drops the first five elements from the stream:
+  ///
+  ///     let numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  ///     cancellable = numbers.publisher
+  ///         .dropFirst(5)
+  ///         .sink { print("\($0)", terminator: " ") }
+  ///
+  ///     // Prints: "6 7 8 9 10 "
+  ///
+  /// - Parameter count: The number of elements to omit. The default is `1`.
+  /// - Returns: A publisher that doesn’t republish the first `count` elements.
+  func dropFirst(_ count: Int = 1) -> Observable<Element> {
+    skip(1)
   }
 
   /// Performs the specified closures when publisher events occur.
@@ -85,26 +117,34 @@ public extension ObservableType {
   func handleEvents(
     receiveSubscription: ((()) -> Void)? = nil,
     receiveOutput: ((Element) -> Void)? = nil,
-    receiveCompletion: ((RxSwiftConventionCombine.Completion<Error>) -> Void)? = nil,
+    receiveCompletion: ((RxCombine.Completion<any Error>) -> Void)? = nil,
     receiveCancel: (() -> Void)? = nil,
     receiveRequest: ((()) -> Void)? = nil
   ) -> Observable<Element> {
-    self.do { onNextValue in
-      receiveOutput?(onNextValue)
-    } onError: { error in
-      receiveCompletion?(.failure(error))
-    } onCompleted: {
-      receiveCompletion?(.finished)
-    } onSubscribe: {
-      receiveRequest?(())
-      receiveSubscription?(())
-    }
+    return self.asPublisher()
+      .handleEvents { _ in
+        receiveSubscription?(())
+      } receiveOutput: { ouput in
+        receiveOutput?(ouput)
+      } receiveCompletion: { completion in
+        switch completion {
+          case .failure(let error):
+            receiveCompletion?(.failure(error))
+          case .finished:
+            receiveCompletion?(.finished)
+        }
+      } receiveCancel: {
+        receiveCancel?()
+      } receiveRequest: { _ in
+        receiveRequest?(())
+      }
+      .asObservable()
   }
 }
 
 extension ObservableType {
   public func sink(
-    receiveCompletion: @escaping ((RxSwiftConventionCombine.Completion<Error>) -> Void),
+    receiveCompletion: @escaping ((RxCombine.Completion<Error>) -> Void),
     receiveValue: @escaping ((Self.Element) -> Void))
   -> Disposable {
     subscribe { element in
@@ -116,12 +156,20 @@ extension ObservableType {
     }
   }
 
-  public func sink(receiveValue: @escaping ((Element) -> Void)) -> Disposable {
+  public func sink(
+    receiveValue: @escaping ((Element) -> Void)
+  ) -> Disposable {
     subscribe(onNext: receiveValue)
   }
 
   public func eraseToAnyPublisher() -> Observable<Element> {
-    self.asObservable()
+    asObservable()
+  }
+  
+  public func removeDuplicates(
+    by predicate: @escaping (Element, Element) throws -> Bool
+  ) -> Observable<Element> {
+    distinctUntilChanged(predicate)
   }
 }
 
@@ -130,3 +178,31 @@ public extension Disposable {
     dispose()
   }
 }
+
+
+#if canImport(Combine)
+import Combine
+
+extension Effect {
+  /// Creates an effect from a Combine publisher.
+  ///
+  /// - Parameter createPublisher: The closure to execute when the effect is performed.
+  /// - Returns: An effect wrapping a Combine publisher.
+  public static func publisher<P: Publisher>(_ createPublisher: @escaping () -> P) -> Self
+  where P.Output == Action, P.Failure == Never {
+    Self(
+      operation: .publisher(
+        withEscapedDependencies { continuation in
+          Deferred {
+            continuation.yield {
+              createPublisher()
+            }
+          }
+        }
+          .eraseToAnyPublisher()
+          .asObservable()
+      )
+    )
+  }
+}
+#endif

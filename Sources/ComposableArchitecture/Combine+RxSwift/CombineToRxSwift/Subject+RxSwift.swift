@@ -1,6 +1,5 @@
 #if canImport(Combine)
 import Combine
-import RxSwift
 import RxRelay
 
 /// Represents a Combine Subject that can be converted

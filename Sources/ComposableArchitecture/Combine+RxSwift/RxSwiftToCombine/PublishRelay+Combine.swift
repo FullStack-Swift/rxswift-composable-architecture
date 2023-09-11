@@ -1,6 +1,5 @@
 #if canImport(Combine)
 import Combine
-import RxSwift
 import RxRelay
 
 // MARK: - Publish Relay as Combine Subject

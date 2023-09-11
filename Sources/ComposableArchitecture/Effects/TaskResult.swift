@@ -17,7 +17,7 @@ import XCTestDynamicOverlay
 /// effect:
 ///
 /// ```swift
-/// enum FeatureAction: Equatable {
+/// enum Action: Equatable {
 ///   case factButtonTapped
 ///   case factResponse(TaskResult<String>)
 /// }
@@ -31,25 +31,27 @@ import XCTestDynamicOverlay
 /// }
 /// ```
 ///
-/// And finally you can use ``EffectPublisher/task(priority:operation:catch:file:fileID:line:)`` to
-/// construct an effect in the reducer that invokes the `numberFact` endpoint and wraps its response
-/// in a ``TaskResult`` by using its catching initializer, ``TaskResult/init(catching:)``:
+/// And finally you can use ``Effect/run(priority:operation:catch:fileID:line:)`` to construct an
+/// effect in the reducer that invokes the `numberFact` endpoint and wraps its response in a
+/// ``TaskResult`` by using its catching initializer, ``TaskResult/init(catching:)``:
 ///
 /// ```swift
 /// case .factButtonTapped:
-///   return .task {
-///     await .factResponse(
-///       TaskResult { try await self.numberFact.fetch(state.number) }
+///   return .run { send in
+///     await send(
+///       .factResponse(
+///         TaskResult { try await self.numberFact.fetch(state.number) }
+///       )
 ///     )
 ///   }
 ///
-/// case .factResponse(.success(fact)):
+/// case let .factResponse(.success(fact)):
 ///   // do something with fact
 ///
 /// case .factResponse(.failure):
 ///   // handle error
 ///
-/// ...
+/// // ...
 /// }
 /// ```
 ///
@@ -77,11 +79,11 @@ import XCTestDynamicOverlay
 /// store.send(.refresh) { $0.isLoading = true }
 ///
 /// // Assert against failure
-/// await store.receive(.refreshResponse(.failure(RefreshFailure())) { // ❌
+/// await store.receive(.refreshResponse(.failure(RefreshFailure())) { // 🛑
 ///   $0.errorLabelText = "An error occurred."
 ///   $0.isLoading = false
 /// }
-/// // ❌ 'RefreshFailure' is not equatable
+/// // 🛑 'RefreshFailure' is not equatable
 /// ```
 ///
 /// To get a passing test, explicitly conform your custom error to the `Equatable` protocol:
@@ -103,10 +105,10 @@ import XCTestDynamicOverlay
 public enum TaskResult<Success: Sendable>: Sendable {
   /// A success, storing a `Success` value.
   case success(Success)
-
+  
   /// A failure, storing an error.
   case failure(Error)
-
+  
   /// Creates a new task result by evaluating an async throwing closure, capturing the returned
   /// value as a success, or any thrown error as a failure.
   ///
@@ -122,7 +124,7 @@ public enum TaskResult<Success: Sendable>: Sendable {
       self = .failure(error)
     }
   }
-
+  
   /// Transforms a `Result` into a `TaskResult`, erasing its `Failure` to `Error`.
   ///
   /// - Parameter result: A result.
@@ -135,7 +137,7 @@ public enum TaskResult<Success: Sendable>: Sendable {
         self = .failure(error)
     }
   }
-
+  
   /// Returns the success value as a throwing property.
   @inlinable
   public var value: Success {
@@ -148,7 +150,7 @@ public enum TaskResult<Success: Sendable>: Sendable {
       }
     }
   }
-
+  
   /// Returns a new task result, mapping any success value using the given transformation.
   ///
   /// Like `map` on `Result`, `Optional`, and many other types.
@@ -165,7 +167,7 @@ public enum TaskResult<Success: Sendable>: Sendable {
         return .failure(error)
     }
   }
-
+  
   /// Returns a new task result, mapping any success value using the given transformation and
   /// unwrapping the produced result.
   ///
@@ -211,22 +213,23 @@ extension TaskResult: Equatable where Success: Equatable {
       case let (.success(lhs), .success(rhs)):
         return lhs == rhs
       case let (.failure(lhs), .failure(rhs)):
-        return _isEqual(lhs, rhs) ?? {
+        return _isEqual(lhs, rhs)
+        ?? {
 #if DEBUG
           let lhsType = type(of: lhs)
           if TaskResultDebugging.emitRuntimeWarnings, lhsType == type(of: rhs) {
             let lhsTypeName = typeName(lhsType)
             runtimeWarn(
-              """
-              "\(lhsTypeName)" is not equatable. …
-
-              To test two values of this type, it must conform to the "Equatable" protocol. For \
-              example:
-
-                  extension \(lhsTypeName): Equatable {}
-
-              See the documentation of "TaskResult" for more information.
-              """
+                """
+                "\(lhsTypeName)" is not equatable. …
+                
+                To test two values of this type, it must conform to the "Equatable" protocol. For \
+                example:
+                
+                    extension \(lhsTypeName): Equatable {}
+                
+                See the documentation of "TaskResult" for more information.
+                """
             )
           }
 #endif
@@ -255,11 +258,11 @@ extension TaskResult: Hashable where Success: Hashable {
             runtimeWarn(
               """
               "\(errorType)" is not hashable. …
-
+              
               To hash a value of this type, it must conform to the "Hashable" protocol. For example:
-
+              
                   extension \(errorType): Hashable {}
-
+              
               See the documentation of "TaskResult" for more information.
               """
             )

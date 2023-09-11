@@ -7,17 +7,17 @@ import XCTest
 final class BindingLocalTests: BaseTCATestCase {
   public func testBindingLocalIsActive() {
     XCTAssertFalse(BindingLocal.isActive)
-
-    struct MyReducer: ReducerProtocol {
+    
+    struct MyReducer: Reducer {
       struct State: Equatable {
         var text = ""
       }
-
+      
       enum Action: Equatable {
         case textChanged(String)
       }
-
-      func reduce(into state: inout State, action: Action) -> EffectTask<Action> {
+      
+      func reduce(into state: inout State, action: Action) -> Effect<Action> {
         switch action {
           case let .textChanged(text):
             state.text = text
@@ -25,10 +25,10 @@ final class BindingLocalTests: BaseTCATestCase {
         }
       }
     }
-
-    let store = Store(initialState: MyReducer.State(), reducer: MyReducer())
+    
+    let store = Store(initialState: MyReducer.State()) { MyReducer() }
     let viewStore = ViewStore(store, observe: { $0 })
-
+    
     let binding = viewStore.binding(get: \.text) { text in
       XCTAssertTrue(BindingLocal.isActive)
       return .textChanged(text)

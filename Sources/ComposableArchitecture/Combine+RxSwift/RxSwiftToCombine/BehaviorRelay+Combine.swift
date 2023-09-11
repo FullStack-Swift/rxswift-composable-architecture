@@ -1,6 +1,5 @@
 #if canImport(Combine)
 import Combine
-import RxSwift
 import RxRelay
 
 // MARK: - Behavior Relay as Combine Subject

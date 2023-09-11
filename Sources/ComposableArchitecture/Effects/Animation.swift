@@ -1,8 +1,7 @@
 import RxRelay
-import RxSwift
 import SwiftUI
 
-extension EffectPublisher {
+extension Effect {
   /// Wraps the emission of each element with SwiftUI's `withAnimation`.
   ///
   /// ```swift
@@ -72,8 +71,27 @@ private struct TransactionPublisher<Action>: ObservableType {
   }
 
   func subscribe<Observer>(_ observer: Observer) -> RxSwift.Disposable where Observer : RxSwift.ObserverType, Element == Observer.Element {
-    upstream.subscribe(observer)
+    let conduit = TransactionObserver(downstream: observer, transaction: self.transaction)
+    return upstream.subscribe(conduit)
   }
-
-
+  
+  private final class TransactionObserver<Downstream: RxSwift.ObserverType>: ObserverType {
+    
+    typealias Input = Downstream.Element
+    
+    let downstream: Downstream
+    let transaction: Transaction
+    
+    init(downstream: Downstream, transaction: Transaction) {
+      self.downstream = downstream
+      self.transaction = transaction
+    }
+    
+    func on(_ event: Event<Input>) {
+      withTransaction(transaction) {
+        self.downstream.on(event)
+      }
+    }
+  }
 }
+

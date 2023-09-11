@@ -1,5 +1,3 @@
-import RxSwift
-
 extension Store {
   /// Calls one of two closures depending on whether a store's optional state is `nil` or not, and
   /// whenever this condition changes for as long as the cancellable lives.
@@ -49,15 +47,19 @@ extension Store {
     then unwrap: @escaping (Store<Wrapped, Action>) -> Void,
     else: @escaping () -> Void = {}
   ) -> Disposable where State == Wrapped? {
-    return self.state.distinctUntilChanged {($0 != nil) == ($1 != nil)}
+    return self.state.removeDuplicates {($0 != nil) == ($1 != nil)}
       .observe(on: MainScheduler.instance)
       .subscribe (onNext: { state in
         if var state = state {
           unwrap(
-            self.scope {
-              state = $0 ?? state
-              return state
-            })
+            self.scope(
+              state: {
+                state = $0 ?? state
+                return state
+              },
+              action: { $0 }
+            )
+          )
         } else {
           `else`()
         }

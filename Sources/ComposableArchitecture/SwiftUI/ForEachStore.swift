@@ -11,7 +11,7 @@ import SwiftUI
 /// For example, a todos app may define the domain and logic associated with an individual todo:
 ///
 /// ```swift
-/// struct Todo: ReducerProtocol {
+/// struct Todo: Reducer {
 ///   struct State: Equatable, Identifiable {
 ///     let id: UUID
 ///     var description = ""
@@ -23,7 +23,9 @@ import SwiftUI
 ///     case descriptionChanged(String)
 ///   }
 ///
-///   func reduce(into state: inout State, action: Action) -> EffectTask<Action> { ... }
+///   func reduce(into state: inout State, action: Action) -> Effect<Action> {
+///     // ...
+///   }
 /// }
 /// ```
 ///
@@ -32,7 +34,7 @@ import SwiftUI
 /// ```swift
 /// struct TodoView: View {
 ///   let store: StoreOf<Todo>
-///   var body: some View { ... }
+///   var body: some View { /* ... */ }
 /// }
 /// ```
 ///
@@ -40,11 +42,11 @@ import SwiftUI
 /// state:
 ///
 /// ```swift
-/// struct Todos: ReducerProtocol {
+/// struct Todos: Reducer {
 ///   struct State: Equatable {
 ///     var todos: IdentifiedArrayOf<Todo.State> = []
 ///   }
-///   ...
+///   // ...
 /// }
 /// ```
 ///
@@ -56,12 +58,12 @@ import SwiftUI
 /// }
 /// ```
 ///
-/// Enhance its core reducer using ``ReducerProtocol/forEach(_:action:element:file:fileID:line:)``:
+/// Enhance its core reducer using ``Reducer/forEach(_:action:element:fileID:line:)``:
 ///
 /// ```swift
-/// var body: some ReducerProtocol<State, Action> {
+/// var body: some Reducer<State, Action> {
 ///   Reduce { state, action in
-///     ...
+///     // ...
 ///   }
 ///   .forEach(\.todos, action: /Action.todo(id:action:)) {
 ///     Todo()
@@ -84,7 +86,7 @@ public struct ForEachStore<
 >: DynamicViewContent {
   public let data: Data
   let content: Content
-
+  
   /// Initializes a structure that computes views on demand from a store on a collection of data and
   /// an identified action.
   ///
@@ -93,27 +95,25 @@ public struct ForEachStore<
   ///   - content: A function that can generate content given a store of an element.
   public init<EachContent>(
     _ store: Store<IdentifiedArray<ID, EachState>, (ID, EachAction)>,
-    @ViewBuilder content: @escaping (Store<EachState, EachAction>) -> EachContent
+    @ViewBuilder content: @escaping (_ store: Store<EachState, EachAction>) -> EachContent
   )
   where
   Data == IdentifiedArray<ID, EachState>,
   Content == WithViewStore<
-    OrderedSet<ID>, (ID, EachAction), ForEach<OrderedSet<ID>, ID, EachContent>
+    IdentifiedArray<ID, EachState>, (ID, EachAction),
+    ForEach<IdentifiedArray<ID, EachState>, ID, EachContent>
   >
   {
   self.data = store.state.value
   self.content = WithViewStore(
     store,
-    observe: { $0.ids },
-    removeDuplicates: areOrderedSetsDuplicates
+    observe: { $0 },
+    removeDuplicates: { areOrderedSetsDuplicates($0.ids, $1.ids) }
   ) { viewStore in
-    ForEach(viewStore.state, id: \.self) { id -> EachContent in
-      // NB: We cache elements here to avoid a potential crash where SwiftUI may re-evaluate
-      //     views for elements no longer in the collection.
-      //
-      // Feedback filed: https://gist.github.com/stephencelis/cdf85ae8dab437adc998fb0204ed9a6b
-      var element = store.state.value[id: id]!
-      return content(
+    ForEach(viewStore.state, id: viewStore.state.id) { element in
+      var element = element
+      let id = element[keyPath: viewStore.state.id]
+      content(
         store.scope(
           state: {
             element = $0[id: id] ?? element
@@ -125,19 +125,8 @@ public struct ForEachStore<
     }
   }
   }
-
+  
   public var body: some View {
     self.content
   }
-}
-
-private func areOrderedSetsDuplicates<ID: Hashable>(lhs: OrderedSet<ID>, rhs: OrderedSet<ID>)
--> Bool
-{
-  var lhs = lhs
-  var rhs = rhs
-  if memcmp(&lhs, &rhs, MemoryLayout<OrderedSet<ID>>.size) == 0 {
-    return true
-  }
-  return lhs == rhs
 }

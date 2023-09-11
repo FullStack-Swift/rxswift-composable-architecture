@@ -10,10 +10,10 @@ final class DependencyKeyWritingReducerTests: BaseTCATestCase {
       .dependency(\.myValue, 1)
       .dependency(\.myValue, 2)
       .dependency(\.myValue, 3)
-
+    
     XCTAssertTrue((reducer as Any) is _DependencyKeyWritingReducer<Feature>)
   }
-
+  
   func testTransformFusion() async {
     let reducer: _DependencyKeyWritingReducer<Feature> = Feature()
       .transformDependency(\.myValue) { $0 = 42 }
@@ -21,76 +21,64 @@ final class DependencyKeyWritingReducerTests: BaseTCATestCase {
       .transformDependency(\.myValue) { $0 = 1 }
       .transformDependency(\.myValue) { $0 = 2 }
       .transformDependency(\.myValue) { $0 = 3 }
-
+    
     XCTAssertTrue((reducer as Any) is _DependencyKeyWritingReducer<Feature>)
   }
-
+  
   func testWritingFusionOrder() async {
-    let reducer = Feature()
-      .dependency(\.myValue, 42)
-      .dependency(\.myValue, 1729)
-
-    let store = TestStore(
-      initialState: Feature.State(),
-      reducer: reducer
-    )
-
-    await store.send(.tap) {
-      $0.value = 42
-    }
-  }
-
-  func testTransformFusionOrder() async {
-    let reducer = Feature()
-      .transformDependency(\.myValue) { $0 = 42 }
-      .transformDependency(\.myValue) { $0 = 1729 }
-
-    let store = TestStore(
-      initialState: Feature.State(),
-      reducer: reducer
-    )
-
-    await store.send(.tap) {
-      $0.value = 42
-    }
-  }
-
-  func testWritingOrder() async {
-    let reducer = CombineReducers {
+    let store = TestStore(initialState: Feature.State()) {
       Feature()
         .dependency(\.myValue, 42)
+        .dependency(\.myValue, 1729)
     }
-      .dependency(\.myValue, 1729)
-
-    let store = TestStore(
-      initialState: Feature.State(),
-      reducer: reducer
-    )
-
+    
     await store.send(.tap) {
       $0.value = 42
     }
   }
-
-  func testTransformOrder() async {
-    let reducer = CombineReducers {
+  
+  func testTransformFusionOrder() async {
+    let store = TestStore(initialState: Feature.State()) {
       Feature()
         .transformDependency(\.myValue) { $0 = 42 }
+        .transformDependency(\.myValue) { $0 = 1729 }
     }
-      .transformDependency(\.myValue) { $0 = 1729 }
-
-    let store = TestStore(
-      initialState: Feature.State(),
-      reducer: reducer
-    )
-
+    
     await store.send(.tap) {
       $0.value = 42
     }
   }
-
+  
+  func testWritingOrder() async {
+    let store = TestStore(initialState: Feature.State()) {
+      CombineReducers {
+        Feature()
+          .dependency(\.myValue, 42)
+      }
+      .dependency(\.myValue, 1729)
+    }
+    
+    await store.send(.tap) {
+      $0.value = 42
+    }
+  }
+  
+  func testTransformOrder() async {
+    let store = TestStore(initialState: Feature.State()) {
+      CombineReducers {
+        Feature()
+          .transformDependency(\.myValue) { $0 = 42 }
+      }
+      .transformDependency(\.myValue) { $0 = 1729 }
+    }
+    
+    await store.send(.tap) {
+      $0.value = 42
+    }
+  }
+  
   func testDependency_EffectOfEffect() async {
-    struct Feature: ReducerProtocol {
+    struct Feature: Reducer {
       struct State: Equatable { var count = 0 }
       enum Action: Equatable {
         case tap
@@ -98,30 +86,29 @@ final class DependencyKeyWritingReducerTests: BaseTCATestCase {
         case otherResponse(Int)
       }
       @Dependency(\.myValue) var myValue
-
-      func reduce(into state: inout State, action: Action) -> EffectTask<Action> {
+      
+      func reduce(into state: inout State, action: Action) -> Effect<Action> {
         switch action {
           case .tap:
             state.count += 1
-            return .task { .response(self.myValue) }
-
+            return .run { send in await send(.response(self.myValue)) }
+            
           case let .response(value):
             state.count = value
-            return .task { .otherResponse(self.myValue) }
-
+            return .run { send in await send(.otherResponse(self.myValue)) }
+            
           case let .otherResponse(value):
             state.count = value
             return .none
         }
       }
     }
-
-    let store = TestStore(
-      initialState: Feature.State(),
-      reducer: Feature()
+    
+    let store = TestStore(initialState: Feature.State()) {
+      Feature()
         .dependency(\.myValue, 42)
-    )
-
+    }
+    
     await store.send(.tap) {
       $0.count = 1
     }
@@ -132,11 +119,11 @@ final class DependencyKeyWritingReducerTests: BaseTCATestCase {
   }
 }
 
-private struct Feature: ReducerProtocol {
+private struct Feature: Reducer {
   @Dependency(\.myValue) var myValue
   struct State: Equatable { var value = 0 }
   enum Action { case tap }
-  func reduce(into state: inout State, action: Action) -> EffectTask<Action> {
+  func reduce(into state: inout State, action: Action) -> Effect<Action> {
     switch action {
       case .tap:
         state.value = self.myValue

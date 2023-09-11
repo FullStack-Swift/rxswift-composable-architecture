@@ -1,5 +1,5 @@
 #if DEBUG
-import RxSwift
+import Combine
 import XCTest
 
 @testable import ComposableArchitecture
@@ -7,17 +7,17 @@ import XCTest
 @MainActor
 final class StoreFilterTests: BaseTCATestCase {
   var cancellables: Set<AnyDisposable> = []
-
+  
   func testFilter() {
-    let store = Store<Int?, Void>(initialState: nil, reducer: EmptyReducer())
-      .filter { state, _ in state != nil }
-
-    let viewStore = ViewStore(store)
+    let store = Store<Int?, Void>(initialState: nil) {}
+      .invalidate { $0 != nil }
+    
+    let viewStore = ViewStore(store, observe: { $0 })
     var count = 0
     viewStore.publisher
       .sink { _ in count += 1 }
       .store(in: &self.cancellables)
-
+    
     XCTAssertEqual(count, 1)
     viewStore.send(())
     XCTAssertEqual(count, 1)

@@ -1,5 +1,4 @@
 import RxRelay
-import RxSwift
 import Combine
 import SwiftUI
 
@@ -68,13 +67,12 @@ public final class ViewStore<ViewState, ViewAction>: ObservableObject {
   // N.B. `ViewStore` does not use a `@Published` property, so `objectWillChange`
   // won't be synthesized automatically. To work around issues on iOS 13 we explicitly declare it.
   public private(set) lazy var objectWillChange = ObservableObjectPublisher()
+  
+  let _isInvalidated: () -> Bool
   private let _send: (ViewAction) -> Task<Void, Never>?
   fileprivate var _state: BehaviorRelay<ViewState>
   private var viewCancellable: Disposable?
 
-  deinit {
-    viewCancellable?.dispose()
-  }
 
   /// Initializes a view store from a store which observes changes to state.
   ///
@@ -92,19 +90,20 @@ public final class ViewStore<ViewState, ViewAction>: ObservableObject {
   ///   equal, repeat view computations are removed.
   public init<State>(
     _ store: Store<State, ViewAction>,
-    observe toViewState: @escaping (State) -> ViewState,
-    removeDuplicates isDuplicate: @escaping (ViewState, ViewState) -> Bool
+    observe toViewState: @escaping (_ state: State) -> ViewState,
+    removeDuplicates isDuplicate: @escaping (_ lhs: ViewState, _ rhs: ViewState) -> Bool
   ) {
     self._send = { store.send($0) }
     self._state = BehaviorRelay(value: toViewState(store.state.value))
+    self._isInvalidated = store._isInvalidated
     self.viewCancellable = store.state
       .map(toViewState)
-      .distinctUntilChanged(isDuplicate)
-      .subscribe (onNext: { [weak objectWillChange = self.objectWillChange, weak _state = self._state] in
+      .removeDuplicates(by: isDuplicate)
+      .sink { [weak objectWillChange = self.objectWillChange, weak _state = self._state] in
         guard let objectWillChange = objectWillChange, let _state = _state else { return }
         objectWillChange.send()
         _state.accept($0)
-      })
+      }
   }
 
   /// Initializes a view store from a store which observes changes to state.
@@ -130,99 +129,25 @@ public final class ViewStore<ViewState, ViewAction>: ObservableObject {
   ) {
     self._send = { store.send(fromViewAction($0)) }
     self._state = BehaviorRelay(value: toViewState(store.state.value))
+    self._isInvalidated = store._isInvalidated
     self.viewCancellable = store.state
       .map(toViewState)
-      .distinctUntilChanged(isDuplicate)
-      .subscribe (onNext:{ [weak objectWillChange = self.objectWillChange, weak _state = self._state] in
+      .removeDuplicates(by: isDuplicate)
+      .sink { [weak objectWillChange = self.objectWillChange, weak _state = self._state] in
         guard let objectWillChange = objectWillChange, let _state = _state else { return }
         objectWillChange.send()
         _state.accept($0)
-      })
-  }
-
-  /// Initializes a view store from a store.
-  ///
-  /// > Warning: This initializer is deprecated. Use
-  /// ``ViewStore/init(_:observe:removeDuplicates:)`` to make state observation explicit.
-  /// >
-  /// > When using ``ViewStore`` you should take care to observe only the pieces of state that
-  /// your view needs to do its job, especially towards the root of the application. See
-  /// <doc:Performance> for more details.
-  ///
-  /// - Parameters:
-  ///   - store: A store.
-  ///   - isDuplicate: A function to determine when two `State` values are equal. When values are
-  ///     equal, repeat view computations are removed.
-  @available(
-    iOS,
-    deprecated: 9999.0,
-    message:
-      """
-      Use 'init(_:observe:removeDuplicates:)' to make state observation explicit.
-
-      When using ViewStore you should take care to observe only the pieces of state that your view needs to do its job, especially towards the root of the application. See the performance article for more details:
-
-      https://pointfreeco.github.io/swift-composable-architecture/main/documentation/composablearchitecture/performance#View-stores
-      """
-  )
-  @available(
-    macOS,
-    deprecated: 9999.0,
-    message:
-      """
-      Use 'init(_:observe:removeDuplicates:)' to make state observation explicit.
-
-      When using ViewStore you should take care to observe only the pieces of state that your view needs to do its job, especially towards the root of the application. See the performance article for more details:
-
-      https://pointfreeco.github.io/swift-composable-architecture/main/documentation/composablearchitecture/performance#View-stores
-      """
-  )
-  @available(
-    tvOS,
-    deprecated: 9999.0,
-    message:
-      """
-      Use 'init(_:observe:removeDuplicates:)' to make state observation explicit.
-
-      When using ViewStore you should take care to observe only the pieces of state that your view needs to do its job, especially towards the root of the application. See the performance article for more details:
-
-      https://pointfreeco.github.io/swift-composable-architecture/main/documentation/composablearchitecture/performance#View-stores
-      """
-  )
-  @available(
-    watchOS,
-    deprecated: 9999.0,
-    message:
-      """
-      Use 'init(_:observe:removeDuplicates:)' to make state observation explicit.
-
-      When using ViewStore you should take care to observe only the pieces of state that your view needs to do its job, especially towards the root of the application. See the performance article for more details:
-
-      https://pointfreeco.github.io/swift-composable-architecture/main/documentation/composablearchitecture/performance#View-stores
-      """
-  )
-  public init(
-    _ store: Store<ViewState, ViewAction>,
-    removeDuplicates isDuplicate: @escaping (ViewState, ViewState) -> Bool
-  ) {
-    self._send = { store.send($0) }
-    self._state = BehaviorRelay(value: store.state.value)
-    self.viewCancellable = store.state
-      .distinctUntilChanged(isDuplicate)
-      .subscribe (onNext: { [weak objectWillChange = self.objectWillChange, weak _state = self._state] in
-        guard let objectWillChange = objectWillChange, let _state = _state else { return }
-        objectWillChange.send()
-        _state.accept($0)
-      })
+      }
   }
 
   init(_ viewStore: ViewStore<ViewState, ViewAction>) {
     self._send = viewStore._send
     self._state = viewStore._state
+    self._isInvalidated = viewStore._isInvalidated
     self.objectWillChange = viewStore.objectWillChange
     self.viewCancellable = viewStore.viewCancellable
   }
-
+  
   /// A publisher that emits when state changes.
   ///
   /// This publisher supports dynamic member lookup so that you can pluck out a specific field in
@@ -249,27 +174,22 @@ public final class ViewStore<ViewState, ViewAction>: ObservableObject {
   ///   `viewStore.publisher.sink` closures should be completely independent of each other. Later
   ///   closures cannot assume that earlier ones have already run.
   public var publisher: StorePublisher<ViewState> {
-    StorePublisher(viewStore: self)
+    StorePublisher(store: self, upstream: self._state.asObservable())
   }
+  
   /// The current state.
   public var state: ViewState {
     self._state.value
   }
-
+  
   /// Returns the resulting value of a given key path.
-  public subscript<LocalState>(dynamicMember keyPath: KeyPath<ViewState, LocalState>) -> LocalState {
+  public subscript<Value>(dynamicMember keyPath: KeyPath<ViewState, Value>) -> Value {
     self._state.value[keyPath: keyPath]
   }
-  /// The Binder action.
-  public var action: Binder<ViewAction> {
-    Binder(self) { weakSelf, action in
-      weakSelf.send(action)
-    }
-  }
-
+  
   /// Sends an action to the store.
   ///
-  /// This method returns a ``ViewStoreTask``, which represents the lifecycle of the effect started
+  /// This method returns a ``StoreTask``, which represents the lifecycle of the effect started
   /// from sending an action. You can use this value to tie the effect's lifecycle _and_
   /// cancellation to an asynchronous context, such as SwiftUI's `task` view modifier:
   ///
@@ -280,17 +200,17 @@ public final class ViewStore<ViewState, ViewAction>: ObservableObject {
   /// > Important: ``ViewStore`` is not thread safe and you should only send actions to it from the
   /// > main thread. If you want to send actions on background threads due to the fact that the
   /// > reducer is performing computationally expensive work, then a better way to handle this is to
-  /// > wrap that work in an ``EffectTask`` that is performed on a background thread so that the
+  /// > wrap that work in an ``Effect`` that is performed on a background thread so that the
   /// > result can be fed back into the store.
   ///
   /// - Parameter action: An action.
-  /// - Returns: A ``ViewStoreTask`` that represents the lifecycle of the effect executed when
+  /// - Returns: A ``StoreTask`` that represents the lifecycle of the effect executed when
   ///   sending the action.
   @discardableResult
-  public func send(_ action: ViewAction) -> ViewStoreTask {
+  public func send(_ action: ViewAction) -> StoreTask {
     .init(rawValue: self._send(action))
   }
-
+  
   /// Sends an action to the store with a given animation.
   ///
   /// See ``ViewStore/send(_:)`` for more info.
@@ -299,10 +219,10 @@ public final class ViewStore<ViewState, ViewAction>: ObservableObject {
   ///   - action: An action.
   ///   - animation: An animation.
   @discardableResult
-  public func send(_ action: ViewAction, animation: Animation?) -> ViewStoreTask {
+  public func send(_ action: ViewAction, animation: Animation?) -> StoreTask {
     send(action, transaction: Transaction(animation: animation))
   }
-
+  
   /// Sends an action to the store with a given transaction.
   ///
   /// See ``ViewStore/send(_:)`` for more info.
@@ -311,12 +231,12 @@ public final class ViewStore<ViewState, ViewAction>: ObservableObject {
   ///   - action: An action.
   ///   - transaction: A transaction.
   @discardableResult
-  public func send(_ action: ViewAction, transaction: Transaction) -> ViewStoreTask {
+  public func send(_ action: ViewAction, transaction: Transaction) -> StoreTask {
     withTransaction(transaction) {
       self.send(action)
     }
   }
-
+  
   /// Sends an action into the store and then suspends while a piece of state is `true`.
   ///
   /// This method can be used to interact with async/await code, allowing you to suspend while work
@@ -327,7 +247,7 @@ public final class ViewStore<ViewState, ViewAction>: ObservableObject {
   /// gesture is performed on a list. The domain and logic for this feature can be modeled like so:
   ///
   /// ```swift
-  /// struct Feature: ReducerProtocol {
+  /// struct Feature: Reducer {
   ///   struct State: Equatable {
   ///     var isLoading = false
   ///     var response: String?
@@ -338,12 +258,12 @@ public final class ViewStore<ViewState, ViewAction>: ObservableObject {
   ///   }
   ///   @Dependency(\.fetch) var fetch
   ///
-  ///   func reduce(into state: inout State, action: Action) -> EffectTask<Action> {
+  ///   func reduce(into state: inout State, action: Action) -> Effect<Action> {
   ///     switch action {
   ///     case .pulledToRefresh:
   ///       state.isLoading = true
-  ///       return .task {
-  ///         await .receivedResponse(TaskResult { try await self.fetch() })
+  ///       return .run { send in
+  ///         await send(.receivedResponse(TaskResult { try await self.fetch() }))
   ///       }
   ///
   ///     case let .receivedResponse(result):
@@ -389,7 +309,10 @@ public final class ViewStore<ViewState, ViewAction>: ObservableObject {
   ///   - predicate: A predicate on `ViewState` that determines for how long this method should
   ///     suspend.
   @MainActor
-  public func send(_ action: ViewAction, while predicate: @escaping (ViewState) -> Bool) async {
+  public func send(
+    _ action: ViewAction,
+    while predicate: @escaping (_ state: ViewState) -> Bool
+  ) async {
     let task = self.send(action)
     await withTaskCancellationHandler {
       await self.yield(while: predicate)
@@ -397,7 +320,7 @@ public final class ViewStore<ViewState, ViewAction>: ObservableObject {
       task.rawValue?.cancel()
     }
   }
-
+  
   /// Sends an action into the store and then suspends while a piece of state is `true`.
   ///
   /// See the documentation of ``send(_:while:)`` for more information.
@@ -411,7 +334,7 @@ public final class ViewStore<ViewState, ViewAction>: ObservableObject {
   public func send(
     _ action: ViewAction,
     animation: Animation?,
-    while predicate: @escaping (ViewState) -> Bool
+    while predicate: @escaping (_ state: ViewState) -> Bool
   ) async {
     let task = withAnimation(animation) { self.send(action) }
     await withTaskCancellationHandler {
@@ -420,7 +343,7 @@ public final class ViewStore<ViewState, ViewAction>: ObservableObject {
       task.rawValue?.cancel()
     }
   }
-
+  
   /// Suspends the current task while a predicate on state is `true`.
   ///
   /// If you want to suspend at the same time you send an action to the view store, use
@@ -429,35 +352,12 @@ public final class ViewStore<ViewState, ViewAction>: ObservableObject {
   /// - Parameter predicate: A predicate on `ViewState` that determines for how long this method
   ///   should suspend.
   @MainActor
-  public func yield(while predicate: @escaping (ViewState) -> Bool) async {
-    do {
-      _ = try await self.publisher
-        .values
-        .first(where: { !predicate($0) })
-    } catch {
-      let cancellable = Box<Disposable?>(wrappedValue: nil)
-      try? await withTaskCancellationHandler {
-        try Task.checkCancellation()
-        try await withUnsafeThrowingContinuation {
-          (continuation: UnsafeContinuation<Void, Error>) in
-          guard !Task.isCancelled else {
-            continuation.resume(throwing: CancellationError())
-            return
-          }
-          cancellable.wrappedValue = self.publisher
-            .filter { !predicate($0) }
-            .take(1)
-            .subscribe { _ in
-              continuation.resume()
-              _ = cancellable
-            }
-        }
-      } onCancel: {
-        cancellable.wrappedValue?.dispose()
-      }
-    }
+  public func yield(while predicate: @escaping (_ state: ViewState) -> Bool) async {
+    _ = try? await self.publisher
+      .values
+      .first(where: { !predicate($0) })
   }
-
+  
   /// Derives a binding from the store that prevents direct writes to state and instead sends
   /// actions to the store.
   ///
@@ -486,13 +386,22 @@ public final class ViewStore<ViewState, ViewAction>: ObservableObject {
   ///     sent to the store.
   /// - Returns: A binding.
   public func binding<Value>(
-    get: @escaping (ViewState) -> Value,
-    send valueToAction: @escaping (Value) -> ViewAction
+    get: @escaping (_ state: ViewState) -> Value,
+    send valueToAction: @escaping (_ value: Value) -> ViewAction
   ) -> Binding<Value> {
     ObservedObject(wrappedValue: self)
       .projectedValue[get: .init(rawValue: get), send: .init(rawValue: valueToAction)]
   }
-
+  
+  @_disfavoredOverload
+  func binding<Value>(
+    get: @escaping (_ state: ViewState) -> Value,
+    compactSend valueToAction: @escaping (_ value: Value) -> ViewAction?
+  ) -> Binding<Value> {
+    ObservedObject(wrappedValue: self)
+      .projectedValue[get: .init(rawValue: get), send: .init(rawValue: valueToAction)]
+  }
+  
   /// Derives a binding from the store that prevents direct writes to state and instead sends
   /// actions to the store.
   ///
@@ -507,7 +416,7 @@ public final class ViewStore<ViewState, ViewAction>: ObservableObject {
   /// enum Action { case alertDismissed }
   ///
   /// .alert(
-  ///   item: self.store.binding(
+  ///   item: viewStore.binding(
   ///     get: { $0.alert },
   ///     send: .alertDismissed
   ///   )
@@ -519,12 +428,12 @@ public final class ViewStore<ViewState, ViewAction>: ObservableObject {
   ///   - action: The action to send when the binding is written to.
   /// - Returns: A binding.
   public func binding<Value>(
-    get: @escaping (ViewState) -> Value,
+    get: @escaping (_ state: ViewState) -> Value,
     send action: ViewAction
   ) -> Binding<Value> {
     self.binding(get: get, send: { _ in action })
   }
-
+  
   /// Derives a binding from the store that prevents direct writes to state and instead sends
   /// actions to the store.
   ///
@@ -551,11 +460,11 @@ public final class ViewStore<ViewState, ViewAction>: ObservableObject {
   ///     sent to the store.
   /// - Returns: A binding.
   public func binding(
-    send valueToAction: @escaping (ViewState) -> ViewAction
+    send valueToAction: @escaping (_ state: ViewState) -> ViewAction
   ) -> Binding<ViewState> {
     self.binding(get: { $0 }, send: valueToAction)
   }
-
+  
   /// Derives a binding from the store that prevents direct writes to state and instead sends
   /// actions to the store.
   ///
@@ -582,20 +491,21 @@ public final class ViewStore<ViewState, ViewAction>: ObservableObject {
   public func binding(send action: ViewAction) -> Binding<ViewState> {
     self.binding(send: { _ in action })
   }
-
+  
   private subscript<Value>(
-    get state: HashableWrapper<(ViewState) -> Value>,
-    send action: HashableWrapper<(Value) -> ViewAction>
+    get fromState: HashableWrapper<(ViewState) -> Value>,
+    send toAction: HashableWrapper<(Value) -> ViewAction?>
   ) -> Value {
-    get { state.rawValue(self.state) }
+    get { fromState.rawValue(self.state) }
     set {
       BindingLocal.$isActive.withValue(true) {
-        self.send(action.rawValue(newValue))
+        if let action = toAction.rawValue(newValue) {
+          self.send(action)
+        }
       }
     }
   }
 }
-
 /// A convenience type alias for referring to a view store of a given reducer's domain.
 ///
 /// Instead of specifying two generics:
@@ -609,168 +519,50 @@ public final class ViewStore<ViewState, ViewAction>: ObservableObject {
 /// ```swift
 /// let viewStore: ViewStoreOf<Feature>
 /// ```
-public typealias ViewStoreOf<R: ReducerProtocol> = ViewStore<R.State, R.Action>
+public typealias ViewStoreOf<R: Reducer> = ViewStore<R.State, R.Action>
 
 extension ViewStore where ViewState: Equatable {
-  public convenience init<State>(
-    _ store: Store<State, ViewAction>,
-    observe toViewState: @escaping (State) -> ViewState
-  ) {
-    self.init(store, observe: toViewState, removeDuplicates: ==)
-  }
-
-  public convenience init<State, Action>(
-    _ store: Store<State, Action>,
-    observe toViewState: @escaping (State) -> ViewState,
-    send fromViewAction: @escaping (ViewAction) -> Action
-  ) {
-    self.init(store, observe: toViewState, send: fromViewAction, removeDuplicates: ==)
-  }
-
-  /// Initializes a view store from a store.
+  /// Initializes a view store from a store which observes changes to state.
   ///
-  /// > Warning: This initializer is deprecated. Use
-  /// ``ViewStore/init(_:observe:)`` to make state observation explicit.
-  /// >
-  /// > When using ``ViewStore`` you should take care to observe only the pieces of state that
-  /// your view needs to do its job, especially towards the root of the application. See
-  /// <doc:Performance> for more details.
+  /// It is recommended that the `observe` argument transform the store's state into the bare
+  /// minimum of data needed for the feature to do its job in order to not hinder performance.
+  /// This is especially true for root level features, and less important for leaf features.
+  ///
+  /// To read more about this performance technique, read the <doc:Performance> article.
   ///
   /// - Parameters:
   ///   - store: A store.
-  @available(
-    iOS,
-    deprecated: 9999.0,
-    message:
-      """
-      Use 'init(_:observe:)' to make state observation explicit.
-
-      When using ViewStore you should take care to observe only the pieces of state that your view needs to do its job, especially towards the root of the application. See the performance article for more details:
-
-      https://pointfreeco.github.io/swift-composable-architecture/main/documentation/composablearchitecture/performance#View-stores
-      """
-  )
-  @available(
-    macOS,
-    deprecated: 9999.0,
-    message:
-      """
-      Use 'init(_:observe:)' to make state observation explicit.
-
-      When using ViewStore you should take care to observe only the pieces of state that your view needs to do its job, especially towards the root of the application. See the performance article for more details:
-
-      https://pointfreeco.github.io/swift-composable-architecture/main/documentation/composablearchitecture/performance#View-stores
-      """
-  )
-  @available(
-    tvOS,
-    deprecated: 9999.0,
-    message:
-      """
-      Use 'init(_:observe:)' to make state observation explicit.
-
-      When using ViewStore you should take care to observe only the pieces of state that your view needs to do its job, especially towards the root of the application. See the performance article for more details:
-
-      https://pointfreeco.github.io/swift-composable-architecture/main/documentation/composablearchitecture/performance#View-stores
-      """
-  )
-  @available(
-    watchOS,
-    deprecated: 9999.0,
-    message:
-      """
-      Use 'init(_:observe:)' to make state observation explicit.
-
-      When using ViewStore you should take care to observe only the pieces of state that your view needs to do its job, especially towards the root of the application. See the performance article for more details:
-
-      https://pointfreeco.github.io/swift-composable-architecture/main/documentation/composablearchitecture/performance#View-stores
-      """
-  )
-  public convenience init(_ store: Store<ViewState, ViewAction>) {
-    self.init(store, removeDuplicates: ==)
+  ///   - toViewState: A transformation of `ViewState` to the state that will be observed for
+  ///   changes.
+  public convenience init<State>(
+    _ store: Store<State, ViewAction>,
+    observe toViewState: @escaping (_ state: State) -> ViewState
+  ) {
+    self.init(store, observe: toViewState, removeDuplicates: ==)
   }
-}
-
-extension ViewStore where ViewState == Void {
-  public convenience init(_ store: Store<Void, ViewAction>) {
-    self.init(store, removeDuplicates: ==)
-  }
-}
-
-/// The type returned from ``ViewStore/send(_:)`` that represents the lifecycle of the effect
-/// started from sending an action.
-///
-/// You can use this value to tie the effect's lifecycle _and_ cancellation to an asynchronous
-/// context, such as the `task` view modifier.
-///
-/// ```swift
-/// .task { await viewStore.send(.task).finish() }
-/// ```
-///
-/// > Note: Unlike Swift's `Task` type, ``ViewStoreTask`` automatically sets up a cancellation
-/// > handler between the current async context and the task.
-///
-/// See ``TestStoreTask`` for the analog returned from ``TestStore``.
-public struct ViewStoreTask: Hashable, Sendable {
-  fileprivate let rawValue: Task<Void, Never>?
-
-  /// Cancels the underlying task and waits for it to finish.
-  public func cancel() async {
-    self.rawValue?.cancel()
-    await self.finish()
-  }
-
-  /// Waits for the task to finish.
-  public func finish() async {
-    await self.rawValue?.cancellableValue
-  }
-
-  /// A Boolean value that indicates whether the task should stop executing.
+  
+  /// Initializes a view store from a store which observes changes to state.
   ///
-  /// After the value of this property becomes `true`, it remains `true` indefinitely. There is no
-  /// way to uncancel a task.
-  public var isCancelled: Bool {
-    self.rawValue?.isCancelled ?? true
+  /// It is recommended that the `observe` argument transform the store's state into the bare
+  /// minimum of data needed for the feature to do its job in order to not hinder performance.
+  /// This is especially true for root level features, and less important for leaf features.
+  ///
+  /// To read more about this performance technique, read the <doc:Performance> article.
+  ///
+  /// - Parameters:
+  ///   - store: A store.
+  ///   - toViewState: A transformation of `ViewState` to the state that will be observed for
+  ///   changes.
+  ///   - fromViewAction: A transformation of `ViewAction` that describes what actions can be sent.
+  public convenience init<State, Action>(
+    _ store: Store<State, Action>,
+    observe toViewState: @escaping (_ state: State) -> ViewState,
+    send fromViewAction: @escaping (_ viewAction: ViewAction) -> Action
+  ) {
+    self.init(store, observe: toViewState, send: fromViewAction, removeDuplicates: ==)
   }
 }
 
-/// A publisher of store state.
-@dynamicMemberLookup
-public struct StorePublisher<State>: ObservableType {
-  public typealias Element = State
-  public let upstream: Observable<State>
-  public let viewStore: Any
-  
-  fileprivate init<Action>(viewStore: ViewStore<State, Action>) {
-    self.viewStore = viewStore
-    self.upstream = viewStore._state.asObservable()
-  }
-  
-  public func subscribe<Observer>(
-    _ observer: Observer
-  ) -> Disposable where Observer: ObserverType, Element == Observer.Element {
-    return upstream
-      .do(onCompleted: {
-        _ = viewStore
-      })
-      .subscribe(observer)
-  }
-  
-  private init<P: Observable<Element>>(
-    _ upstream: P,
-    viewStore: Any
-  ) where P.Element == Element {
-    self.upstream = upstream
-    self.viewStore = viewStore
-  }
-  
-  /// Returns the resulting publisher of a given key path.
-  public subscript<LocalState>(
-    dynamicMember keyPath: KeyPath<State, LocalState>
-  ) -> StorePublisher<LocalState> where LocalState: Equatable {
-    .init(upstream.map{$0[keyPath: keyPath]}.distinctUntilChanged(), viewStore: viewStore)
-  }
-}
 
 private struct HashableWrapper<Value>: Hashable {
   let rawValue: Value
