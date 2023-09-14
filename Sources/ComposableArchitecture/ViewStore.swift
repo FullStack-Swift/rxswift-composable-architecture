@@ -187,6 +187,13 @@ public final class ViewStore<ViewState, ViewAction>: ObservableObject {
     self._state.value[keyPath: keyPath]
   }
   
+  /// The Binder action.
+  public var action: Binder<ViewAction> {
+    Binder(self) { weakSelf, action in
+      weakSelf.send(action)
+    }
+  }
+
   /// Sends an action to the store.
   ///
   /// This method returns a ``StoreTask``, which represents the lifecycle of the effect started
