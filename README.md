@@ -4,9 +4,17 @@
 
 ## Swift Package Manager
 
+# For Release
 ```swift
 dependencies: [
     .package(url: "https://github.com/FullStack-Swift/rxswift-composable-architecture", .upToNextMajor(from: "1.0.0"))
+]
+```
+
+#For Develop
+```swift
+dependencies: [
+    .package(url: "https://github.com/FullStack-Swift/rxswift-composable-architecture", branch: "main")
 ]
 ```
 
